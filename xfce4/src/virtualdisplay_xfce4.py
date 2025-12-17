@@ -20,19 +20,60 @@ logger = logging.getLogger('breezy_xfce4_virtualdisplay')
 class VirtualDisplayXFCE4:
     """Virtual display implementation for XFCE4 using xrandr."""
     
-    def __init__(self, width, height, framerate, on_closed_cb):
+    def __init__(self, width, height, framerate, on_closed_cb, output_name: str | None = None):
+        """
+        Args:
+            width: desired mode width in pixels
+            height: desired mode height in pixels
+            framerate: refresh rate in Hz
+            on_closed_cb: callback invoked when the display is torn down
+            output_name: optional XRandR output name to target (e.g. 'VIRTUAL1').
+                         If None, the first output whose name contains 'VIRTUAL'
+                         (case-insensitive) will be used.
+        """
         self.width = width
         self.height = height
         self.framerate = framerate
         self.on_closed_cb = on_closed_cb
+        self.output_name = output_name  # preferred output, e.g. 'VIRTUAL1'
         self.mode_name = None
         self.virtual_output = None
         self.running = True
         
+    def _find_virtual_output(self) -> str | None:
+        """Find the target output for the virtual display, preferring a configured name."""
+        try:
+            xrandr_output = subprocess.run(['xrandr'], capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to query xrandr outputs: {e}")
+            return None
+
+        lines = xrandr_output.stdout.splitlines()
+
+        # If a specific output name was requested, prefer that.
+        if self.output_name:
+            for line in lines:
+                parts = line.split()
+                if not parts:
+                    continue
+                if parts[0] == self.output_name:
+                    logger.info(f"Using configured virtual output: {self.output_name}")
+                    return self.output_name
+
+        # Fallback: first output whose name contains 'VIRTUAL'
+        for line in lines:
+            if 'VIRTUAL' in line.upper():
+                parts = line.split()
+                if parts:
+                    logger.info(f"Using detected virtual output: {parts[0]}")
+                    return parts[0]
+
+        return None
+
     def create(self):
         """Create the virtual display."""
         try:
-            # Generate modeline
+            # Generate modeline for the requested mode (e.g. 3840x2160@60)
             modeline_cmd = ['cvt', str(self.width), str(self.height), str(self.framerate)]
             result = subprocess.run(modeline_cmd, capture_output=True, text=True, check=True)
             
@@ -40,38 +81,51 @@ class VirtualDisplayXFCE4:
             for line in result.stdout.split('\n'):
                 if 'Modeline' in line:
                     parts = line.split()
+                    if len(parts) < 2:
+                        continue
                     self.mode_name = parts[1].strip('"')
                     modeline = ' '.join(parts[1:])
-                    
-                    # Create the mode
-                    subprocess.run(['xrandr', '--newmode', modeline], check=True)
-                    logger.info(f"Created mode: {self.mode_name}")
-                    
-                    # Try to find or create a virtual output
-                    xrandr_output = subprocess.run(['xrandr'], capture_output=True, text=True, check=True)
-                    
-                    # Look for VIRTUAL output
-                    for line in xrandr_output.stdout.split('\n'):
-                        if 'VIRTUAL' in line.upper():
-                            parts = line.split()
-                            if len(parts) > 0:
-                                self.virtual_output = parts[0]
-                                break
-                    
-                    # If no virtual output, we can't actually create the display
-                    # This is a limitation of X11 without compositor support
-                    if not self.virtual_output:
-                        logger.warning("No virtual output available. Virtual display creation on XFCE4/X11 is limited.")
-                        logger.warning("Consider using xf86-video-dummy driver or switching to Wayland for full support.")
-                        # We'll still register the mode but it won't be usable
-                        return
-                    
-                    # Add mode to virtual output
+                    break
+
+            if not self.mode_name:
+                logger.error("Could not parse modeline from cvt output.")
+                return
+
+            # Try to find a suitable virtual output
+            self.virtual_output = self._find_virtual_output()
+            if not self.virtual_output:
+                logger.warning("No virtual output available. Virtual display creation on XFCE4/X11 is limited.")
+                logger.warning("Ensure a dummy output (e.g. VIRTUAL1) is configured with the xf86-video-dummy driver.")
+                return
+
+            # Check whether the mode already exists
+            try:
+                xrandr_modes = subprocess.run(['xrandr'], capture_output=True, text=True, check=True).stdout
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to query xrandr for existing modes: {e}")
+                return
+
+            if self.mode_name not in xrandr_modes:
+                # Create the mode if it doesn't already exist
+                subprocess.run(['xrandr', '--newmode', modeline], check=True)
+                logger.info(f"Created mode: {self.mode_name}")
+            else:
+                logger.info(f"Mode {self.mode_name} already exists, reusing it")
+
+            # Ensure the mode is attached to the virtual output
+            if self.mode_name not in xrandr_modes or self.virtual_output not in xrandr_modes:
+                # We may not be able to reliably detect attachment from the raw text;
+                # safest is to unconditionally attempt addmode and ignore failures.
+                try:
                     subprocess.run(['xrandr', '--addmode', self.virtual_output, self.mode_name], check=True)
-                    subprocess.run(['xrandr', '--output', self.virtual_output, '--mode', self.mode_name], check=True)
-                    
-                    logger.info(f"Virtual display created: {self.width}x{self.height}@{self.framerate}Hz on {self.virtual_output}")
-                    return
+                    logger.info(f"Attached mode {self.mode_name} to {self.virtual_output}")
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"Failed to attach mode {self.mode_name} to {self.virtual_output}: {e}")
+
+            # Activate the mode on the virtual output
+            subprocess.run(['xrandr', '--output', self.virtual_output, '--mode', self.mode_name], check=True)
+            logger.info(f"Virtual display created: {self.width}x{self.height}@{self.framerate}Hz on {self.virtual_output}")
+            return
                     
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to create virtual display: {e}")
