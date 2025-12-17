@@ -91,7 +91,13 @@ class BreezydesktopWindow(Gtk.ApplicationWindow):
         elif not self._skip_verification and not verify_installation():
             self.main_content.append(self.failed_verification)
         elif not ExtensionsManager.get_instance().is_installed():
-            self.main_content.append(self.no_extension)
+            # Only show no-extension for GNOME (XFCE4 doesn't use extensions)
+            desktop_env = ExtensionsManager.get_instance().desktop_env if hasattr(ExtensionsManager.get_instance(), 'desktop_env') else 'unknown'
+            if desktop_env == 'gnome':
+                self.main_content.append(self.no_extension)
+            else:
+                # For XFCE4 and other desktops, skip extension check
+                pass
         elif not self.state_manager.driver_running:
             self.main_content.append(self.no_driver)
         elif not self.state_manager.license_present:

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "Setting up Breezy Desktop for XFCE4..."
+
+# Check if running on XFCE4
+if [ -z "$XDG_CURRENT_DESKTOP" ] || [[ ! "$XDG_CURRENT_DESKTOP" =~ [Xx][Ff][Cc][Ee] ]]; then
+    echo "Warning: This setup script is for XFCE4. Current desktop: $XDG_CURRENT_DESKTOP"
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Check for required commands
+check_command() {
+    for cmd in "$@"; do
+        if command -v "$cmd" &>/dev/null; then
+            return
+        fi
+    done
+
+    echo "Please install one of the following: ${*}, and make sure it's available in your \$PATH, then rerun the setup."
+    exit 1
+}
+
+check_command "xrandr"
+check_command "cvt"
+check_command "python" "python3"
+
+# Check for xf86-video-dummy (optional but recommended)
+if ! dpkg -l | grep -q "xf86-video-dummy" 2>/dev/null && ! pacman -Qq xf86-video-dummy 2>/dev/null && ! rpm -q xorg-x11-drv-dummy 2>/dev/null; then
+    echo "Note: xf86-video-dummy is not installed. Virtual display creation may be limited."
+    echo "For better virtual display support, consider installing:"
+    echo "  Debian/Ubuntu: sudo apt install xserver-xorg-video-dummy"
+    echo "  Arch Linux: sudo pacman -S xf86-video-dummy"
+    echo "  Fedora: sudo dnf install xorg-x11-drv-dummy"
+    echo ""
+fi
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BREEZY_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Install virtualdisplay_xfce4 script
+BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
+mkdir -p "$BIN_HOME"
+
+echo "Installing virtualdisplay_xfce4 script..."
+cp "$BREEZY_DIR/xfce4/src/virtualdisplay_xfce4.py" "$BIN_HOME/virtualdisplay_xfce4"
+chmod +x "$BIN_HOME/virtualdisplay_xfce4"
+
+# Install XFCE4 backend Python module
+echo "Installing XFCE4 backend module..."
+PYTHON_SITE_PACKAGES=$(python3 -c "import site; print(site.getusersitepackages())" 2>/dev/null || python3 -c "import site; print(site.USER_SITE)")
+mkdir -p "$PYTHON_SITE_PACKAGES/breezydesktop"
+cp -r "$BREEZY_DIR/xfce4/src" "$PYTHON_SITE_PACKAGES/breezydesktop/xfce4"
+
+echo ""
+echo "Breezy Desktop XFCE4 setup complete!"
+echo ""
+echo "Note: Virtual display creation on XFCE4/X11 is limited compared to GNOME/KDE."
+echo "For best results, consider:"
+echo "  1. Installing xf86-video-dummy driver"
+echo "  2. Using Wayland session if available"
+echo ""
+echo "You can now launch Breezy Desktop from the applications menu."
+

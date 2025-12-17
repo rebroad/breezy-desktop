@@ -16,7 +16,9 @@ There are two installations available. **Note: Don't manually install either of 
 
 ## Breezy Desktop
 
-Breezy Desktop is a virtual workspace solution for Linux desktops that use the KDE Plasma 6 or GNOME desktop environments (versions 42 through 49). It supports launching multiple virtual monitors alongside multiple physical monitors. For Linux users not running GNOME or KDE, you can play around with a [nested GNOME setup](#nested-gnome-setup).
+Breezy Desktop is a virtual workspace solution for Linux desktops that use the KDE Plasma 6, GNOME desktop environments (versions 42 through 49), or XFCE4. It supports launching multiple virtual monitors alongside multiple physical monitors. For Linux users not running GNOME, KDE, or XFCE4, you can play around with a [nested GNOME setup](#nested-gnome-setup).
+
+**Note:** XFCE4 support has limitations - see [XFCE4 Setup](#xfce4-setup) for details.
 
 For the best performance, ensure you have the latest graphics drivers installed for your distro.
 
@@ -71,6 +73,39 @@ Breezy GNOME is in AUR (but not pacman, yet). To install, run these commands fro
 1. Download the Breezy GNOME [setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_gnome_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_gnome_setup`)
 2. Run the setup script: `~/Downloads/breezy_gnome_setup --tag legacy`
 3. Log out and back in, then proceed to [usage](#breezy-gnome-usage).
+
+### XFCE4 Setup
+
+Breezy Desktop has experimental support for XFCE4. **Important limitations:**
+
+- Virtual display creation on XFCE4/X11 is limited compared to GNOME/KDE
+- Requires `xf86-video-dummy` driver for best results (may require X server restart)
+- Virtual displays won't be rendered in 3D space by the compositor
+- For full functionality, consider using a Wayland session if available
+
+**Setup Instructions:**
+
+1. Make sure your glasses are in the [supported devices list](https://github.com/wheaney/XRLinuxDriver#supported-devices) and are on the latest firmware.
+2. Download the [Breezy XFCE4 setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_xfce4_setup) or use the one from the source:
+   ```bash
+   cd breezy-desktop
+   chmod +x xfce4/bin/breezy_xfce4_setup
+   ./xfce4/bin/breezy_xfce4_setup
+   ```
+3. Install dependencies (if not already installed):
+   ```bash
+   # Debian/Ubuntu
+   sudo apt install xrandr xserver-xorg-video-dummy
+
+   # Arch Linux
+   sudo pacman -S xorg-xrandr xf86-video-dummy
+
+   # Fedora
+   sudo dnf install xrandr xorg-x11-drv-dummy
+   ```
+4. Launch Breezy Desktop from the applications menu.
+
+**For more details, see [XFCE4 Backend README](xfce4/README.md).**
 
 #### Nested-GNOME Setup
 A workable demo -- but not a great long-term solutions -- is to use your preferred desktop environment with a GNOME window open in nested mode. To do this:

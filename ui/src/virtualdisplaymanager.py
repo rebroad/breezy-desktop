@@ -59,8 +59,17 @@ class VirtualDisplayManager(GObject.GObject):
     
     def create_virtual_display(self, width, height, framerate):
         try:
+            # Detect desktop environment
+            desktop_env = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
+            if 'xfce' in desktop_env:
+                # Use XFCE4 virtual display script
+                virtualdisplay_script = f"{get_bin_home()}/virtualdisplay_xfce4"
+            else:
+                # Use GNOME virtual display script
+                virtualdisplay_script = f"{get_bin_home()}/virtualdisplay"
+
             process = subprocess.Popen(
-                [f"{get_bin_home()}/virtualdisplay", "--width", str(int(round(width))), "--height", str(int(round(height))), "--framerate", str(framerate)],
+                [virtualdisplay_script, "--width", str(int(round(width))), "--height", str(int(round(height))), "--framerate", str(framerate)],
                 start_new_session=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
