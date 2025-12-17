@@ -76,36 +76,24 @@ Breezy GNOME is in AUR (but not pacman, yet). To install, run these commands fro
 
 ### XFCE4 Setup
 
-Breezy Desktop has experimental support for XFCE4. **Important limitations:**
+Breezy Desktop has **experimental support** for XFCE4 on X11, with some important caveats:
 
-- Virtual display creation on XFCE4/X11 is limited compared to GNOME/KDE
-- Requires `xf86-video-dummy` driver for best results (may require X server restart)
-- Virtual displays won't be rendered in 3D space by the compositor
-- For full functionality, consider using a Wayland session if available
+- Virtual display creation is more limited than on GNOME/KDE.
+- It relies on an Xorg dummy video driver (`xserver-xorg-video-dummy` / `xf86-video-dummy`) and custom Xorg configuration.
+- Virtual displays are rendered via a separate 3D renderer rather than the XFCE compositor.
 
-**Setup Instructions:**
+At a high level:
 
-1. Make sure your glasses are in the [supported devices list](https://github.com/wheaney/XRLinuxDriver#supported-devices) and are on the latest firmware.
-2. Download the [Breezy XFCE4 setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_xfce4_setup) or use the one from the source:
-   ```bash
-   cd breezy-desktop
-   chmod +x xfce4/bin/breezy_xfce4_setup
-   ./xfce4/bin/breezy_xfce4_setup
-   ```
-3. Install dependencies (if not already installed):
-   ```bash
-   # Debian/Ubuntu
-   sudo apt install xrandr xserver-xorg-video-dummy
+- The real GPU drives your normal XFCE desktop (Screen 0).
+- A dummy Xorg screen (Screen 1) provides a high‑resolution “virtual desktop” that Breezy’s XFCE4 backend and renderer use.
 
-   # Arch Linux
-   sudo pacman -S xorg-xrandr xf86-video-dummy
+**To use Breezy on XFCE4:**
 
-   # Fedora
-   sudo dnf install xrandr xorg-x11-drv-dummy
-   ```
-4. Launch Breezy Desktop from the applications menu.
+1. Ensure your glasses are in the [supported devices list](https://github.com/wheaney/XRLinuxDriver#supported-devices) and running the latest firmware.
+2. Follow the Xorg and backend setup instructions in [`xfce4/README.md`](xfce4/README.md).
+3. Once configured, launch Breezy Desktop from the applications menu as usual.
 
-**For more details, see [XFCE4 Backend README](xfce4/README.md).**
+The XFCE4 README is the single source of truth for detailed XFCE4/X11 setup and limitations.
 
 #### Nested-GNOME Setup
 A workable demo -- but not a great long-term solutions -- is to use your preferred desktop environment with a GNOME window open in nested mode. To do this:
