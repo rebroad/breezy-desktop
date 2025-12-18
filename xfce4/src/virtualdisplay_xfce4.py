@@ -60,12 +60,20 @@ class VirtualDisplayXFCE4:
                     logger.info(f"Using configured virtual output: {self.output_name}")
                     return self.output_name
 
-        # Fallback: first output whose name contains 'VIRTUAL'
+        # Fallback 1: first output whose name contains 'VIRTUAL'
         for line in lines:
             if 'VIRTUAL' in line.upper():
                 parts = line.split()
                 if parts:
                     logger.info(f"Using detected virtual output: {parts[0]}")
+                    return parts[0]
+
+        # Fallback 2: first output whose name contains 'DUMMY'
+        for line in lines:
+            if 'DUMMY' in line.upper():
+                parts = line.split()
+                if parts:
+                    logger.info(f"Using detected dummy output: {parts[0]}")
                     return parts[0]
 
         return None
