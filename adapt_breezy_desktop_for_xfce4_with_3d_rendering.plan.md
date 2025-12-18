@@ -1,6 +1,6 @@
 ---
 name: Adapt Breezy Desktop for XFCE4 with 3D Rendering
-overview: Adapt breezy-desktop to support XFCE4 by creating an XFCE4 backend that creates virtual displays via a small XFCE compositor API and renders them in 3D space using a standalone OpenGL rendering application, since XFCE4 doesn't have compositor APIs for 3D transformations.
+overview: Adapt breezy-desktop to support XFCE4 on X11 by (1) extending the Xorg modesetting driver with a virtual XR connector and AR mode that can hide the physical glasses output from the XRandR 2D map, and (2) rendering virtual desktops in 3D space on AR glasses via a standalone Breezy OpenGL renderer that consumes those virtual surfaces and IMU data from XRLinuxDriver.
 todos:
   - id: research_3d_rendering
     content: "Research 3D rendering requirements: study GNOME/KDE shader code, design standalone renderer architecture, choose implementation language (Python vs C/C++)"
@@ -11,10 +11,15 @@ todos:
     dependencies:
       - research_3d_rendering
   - id: implement_virtual_display_creation
-    content: Implement virtual display creation for XFCE4 via a small compositor API (Mutter-lite), without relying on the XRandR/dummy-driver hack
-    status: completed
+    content: "Implement virtual display creation for XFCE4 by extending the Xorg modesetting driver with a virtual XR connector (seen by XRandR as a normal monitor) backed by off-screen surfaces, with no XRandR/dummy-driver hack"
+    status: pending
     dependencies:
       - create_xfce4_backend_structure
+  - id: design_xorg_virtual_connector
+    content: "Research Xorg modesetting driver (hw/xfree86/drivers/modesetting) and Mutter's monitor stack to design a virtual XR connector that appears as an XRandR output but can be driven by Breezy's 3D renderer and, in AR mode, hides the physical XReal glasses connector from the 2D desktop map"
+    status: pending
+    dependencies:
+      - design_xfce_virtual_display_api
   - id: implement_3d_renderer
     content: "Implement standalone 3D renderer with multi-threaded architecture: non-blocking X11 screen capture thread, render thread matching glasses refresh rate, thread-safe frame buffer, IMU data reading, GLSL shader porting, OpenGL rendering to AR glasses display"
     status: pending
