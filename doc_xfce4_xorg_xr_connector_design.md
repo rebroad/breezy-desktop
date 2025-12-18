@@ -183,6 +183,81 @@ Exact capture strategy can evolve independently of the modesetting driver, as lo
 - Breezy 3D renderer:
   - Captures XR-0 contents.
   - Combines them with IMU data.
-  - Renders to the XR connector in AR space, respecting the layout configured through XFCE’s display tool.
+  - Renders to the XR connector in AR space, respecting the layout configured through XFCE's display tool.
+
+## Communication Interface: Breezy ↔ Xorg
+
+### Design Decision: Direct XRandR Communication
+
+Breezy communicates **directly with Xorg** via the XRandR extension (no intermediate daemon needed):
+
+- Breezy runs as a session service and can use XRandR/X11 APIs directly
+- The modesetting driver reads RandR properties to control AR mode
+- Simpler architecture: fewer moving parts, no IPC overhead
+
+### RandR-Based Communication
+
+**Breezy → Xorg** (via XRandR API):
+
+1. **Enable/disable virtual XR connector**:
+   - Use `RRSetOutputPrimary()` or `RRSetCrtcConfig()` to enable/disable the `XR-0` output
+   - Create modes via `RRAddOutputMode()` if needed
+
+2. **Set AR mode**:
+   - Set a custom RandR output property `"AR_MODE"` (type: boolean) on the virtual XR connector
+   - Example: `RRChangeOutputProperty(output, "AR_MODE", XA_INTEGER, 32, PropModeReplace, 1, &enabled)`
+
+3. **Query connector state**:
+   - Use `RRGetOutputInfo()` to get geometry, position, enabled status
+   - Read `AR_MODE` property via `RRGetOutputProperty()`
+
+**Xorg modesetting driver → Breezy** (via RandR properties):
+
+- The driver reads the `AR_MODE` RandR property on `XR-0`
+- When `AR_MODE=true`: hide physical XR connector, show virtual XR connector
+- When `AR_MODE=false`: show physical XR connector, hide virtual XR connector (or disable it)
+
+### Comparison with Mutter/KWin
+
+| Feature | Mutter | KWin | Xorg (our design) |
+|---------|--------|------|-------------------|
+| Virtual Display API | `RecordVirtual()` via D-Bus | `AddVirtualDisplay()` via D-Bus | Direct XRandR API calls |
+| Display Discovery | Via Mutter's monitor manager | Via KWin's output backend | Via RandR (`RRGetOutputInfo()`) |
+| Content Capture | PipeWire stream | Direct compositor access | X11 pixmap/shm from off-screen buffer |
+| AR Mode Control | Built into Mutter | Built into KWin | RandR property `AR_MODE` |
+
+### Breezy Integration
+
+Breezy's XFCE4 backend (`xfce4/src/xfce4_backend.py`) will use Python XRandR bindings (e.g., `python-xlib` or `xcb`) or subprocess to `xrandr`:
+
+1. **Check availability**:
+   ```python
+   def is_available(self):
+       # Check if XR-0 output exists via xrandr
+       result = subprocess.run(['xrandr', '--listmonitors'],
+                              capture_output=True, text=True)
+       return 'XR-0' in result.stdout
+   ```
+
+2. **Create virtual display** (if not already present):
+   ```python
+   def create_virtual_display(self, width, height, framerate):
+       # XR-0 is always present (created by modesetting driver)
+       # Just enable it and set mode
+       subprocess.run(['xrandr', '--output', 'XR-0',
+                      '--mode', f'{width}x{height}', '--on'])
+       return 'XR-0'
+   ```
+
+3. **Enable AR mode**:
+   ```python
+   def enable_ar_mode(self):
+       # Set AR_MODE property via xrandr or direct XRandR API
+       # This tells the driver to hide physical XR, show virtual XR
+       subprocess.run(['xrandr', '--output', 'XR-0',
+                      '--set', 'AR_MODE', '1'])
+   ```
+
+**Note**: For better performance and reliability, the backend should eventually use direct XRandR API calls (via `python-xlib` or `xcb`) instead of subprocess calls, but subprocess works for initial implementation.
 
 

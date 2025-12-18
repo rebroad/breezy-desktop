@@ -4,10 +4,10 @@ overview: ""
 todos:
   - id: design-modesetting-xr-connector
     content: Design Xorg modesetting virtual XR connector and AR mode semantics (how XR-0 appears in RandR, how AR mode hides the physical XR connector).
-    status: pending
+    status: completed
   - id: impl-modesetting-xr-connector
     content: Extend Xorg modesetting driver to add a virtual XR connector output with modes, off-screen framebuffer, and AR mode that toggles visibility of physical vs virtual XR outputs.
-    status: pending
+    status: in_progress
     dependencies:
       - design-modesetting-xr-connector
   - id: wire-breezy-xfce-backend
@@ -111,7 +111,3 @@ Implement full Breezy Desktop support for XFCE4 on X11 by extending the Xorg mod
 
 - Build and install the patched Xorg driver in a controlled environment (e.g. alternate Xorg binary or custom package) to avoid breaking the system X.
 - Test scenarios:
-- Single‑monitor + XR glasses in normal 2D mode.
-- Extended desktop with virtual XR connector visible in XFCE’s display tool.
-- AR mode: physical XR monitor hidden, virtual XR connector arranged, Breezy rendering 3D desktops in the glasses.
-- Measure performance and latency; tune capture and rendering (e.g. PBOs, texture upload strategies).
