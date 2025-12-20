@@ -547,10 +547,183 @@ This predicts where the head will be when the frame is actually displayed, reduc
 
 ---
 
+## Display Distance: Size Scaling, Not True Distance
+
+### How "Display Distance" Actually Works
+
+**Important Finding**: The "display distance" setting **does NOT adjust true distance** (which would require different images per eye for parallax). Instead, it **scales the display size uniformly**, making it appear larger or smaller.
+
+#### Code Analysis - GNOME Extension
+
+Looking at how `display_distance` is applied in the GNOME extension:
+
+```javascript
+// From virtualdisplayeffect.js line 384
+const noRotationVector = monitorPlacement.centerNoRotate.map(coord =>
+    coord * this._current_display_distance / this.display_distance_default
+);
+```
+
+**Key Points**:
+1. **Uniform Scaling**: All coordinates of the position vector are scaled by the same ratio (`display_distance / display_distance_default`)
+2. **Same for Both Eyes**: `monitorPlacement.centerNoRotate` is the same for both eyes (it's the monitor center, not per-eye)
+3. **No Parallax**: Since the scaling factor is identical for both eyes, there's no parallax effect
+4. **Size Change Only**: Changing `display_distance` makes the display appear larger (closer) or smaller (farther), but doesn't create the stereoscopic depth effect that true distance adjustment would require
+
+#### Why This Happens
+
+For true distance adjustment with parallax, the code would need to:
+- Calculate different `display_distance` values for left vs right eye
+- Use those different distances to sample different parts of the desktop texture
+- Create horizontal offset (disparity) between left and right eye images
+
+The current GNOME implementation scales the **position** of the display uniformly, which changes its apparent size in the viewport, but both eyes see the same scaled position, so there's no parallax.
+
+#### Note on ReShade/Vulkan Implementation
+
+The ReShade/Vulkan shader (`Sombrero.frag`) uses a different approach:
+
+```glsl
+// From Sombrero.frag line 301
+float display_distance = display_north_offset - final_lens_position.x;
+```
+
+Since `final_lens_position.x` is different for left vs right eye (due to different lens vectors), the calculated `display_distance` **is different per eye**. This could theoretically create parallax in the ReShade version, but this shader is used for gaming/Vulkan applications, not the GNOME desktop extension.
+
+#### User Experience (GNOME Extension)
+
+When a user adjusts "display distance" in the GNOME extension:
+- ✅ The display appears larger (if moved closer) or smaller (if moved farther)
+- ❌ There is **no depth perception** - objects don't appear to pop out or recede
+- ❌ Both eyes see the **same image** (just scaled)
+
+This explains why the setting feels like it's adjusting size rather than distance - because that's exactly what it's doing! The UI description is misleading - it should say "Display Size" rather than "Display Distance".
+
+---
+
+## SBS (Side-by-Side) Mode
+
+### What SBS Mode Does
+
+**SBS Mode** is a **hardware display mode** on the XR glasses that changes how the display is interpreted:
+
+#### Hardware-Level Changes
+
+When SBS mode is enabled, the glasses switch to a different display resolution:
+
+**Non-SBS Mode**:
+- Resolution: `1920x1080` (or `1920x1080@60/72/90/120Hz`)
+- Display behavior: Same image sent to both eyes (mirrored), or single display mode
+
+**SBS Mode**:
+- Resolution: `3840x1080` (double width)
+- Display behavior:
+  - Left half (pixels 0-1919) → Left eye
+  - Right half (pixels 1920-3839) → Right eye
+
+#### Code Implementation
+
+The XR driver controls the hardware mode:
+
+```c
+// From XRLinuxDriver/src/devices/xreal.c
+const int sbs_display_modes[] = {
+    DEVICE_MCU_DISPLAY_MODE_3840x1080_60_SBS,
+    DEVICE_MCU_DISPLAY_MODE_3840x1080_72_SBS,
+    DEVICE_MCU_DISPLAY_MODE_3840x1080_90_SBS,
+    // ...
+};
+```
+
+When SBS mode is enabled, the driver switches the glasses to one of these SBS display modes.
+
+#### Shader Handling
+
+The shader code (`Sombrero.frag`) handles SBS mode by:
+
+1. **Detecting which half of the screen** is being rendered:
+   ```glsl
+   bool right_display = texcoord.x > 0.5;
+   ```
+
+2. **Using the appropriate lens vector**:
+   ```glsl
+   if(right_display) {
+       effective_lens_vector = lens_vector_r;  // Right eye lens
+   } else {
+       effective_lens_vector = lens_vector;   // Left eye lens
+   }
+   ```
+
+3. **Remapping texture coordinates** to treat each half as full-screen:
+   ```glsl
+   texcoord.x = (texcoord.x - (right_display ? 0.5 : 0.0)) * 2;
+   // Left half: 0.0-0.5 becomes 0.0-1.0
+   // Right half: 0.5-1.0 becomes 0.0-1.0
+   ```
+
+4. **Applying lens-specific transformations** for proper perspective correction per eye
+
+#### Why Enable SBS Mode?
+
+**The primary purpose of SBS mode is perspective correction per eye**, not wider desktop workspace.
+
+Users would enable SBS mode for:
+
+1. **Proper Perspective Correction**:
+   - Each eye uses a different lens vector (`lens_vector` vs `lens_vector_r`)
+   - This accounts for the physical separation between eyes (Inter-Pupillary Distance, IPD)
+   - Without SBS mode, both eyes see the same image with the same perspective, which can cause eye strain
+   - With SBS mode, each eye sees the desktop from its correct viewing angle, making the display more comfortable to view
+
+2. **Different Display Distance Per Eye**:
+   - In the shader, `display_distance = display_north_offset - final_lens_position.x`
+   - Since `final_lens_position.x` is different for each eye (due to different lens vectors), the calculated `display_distance` **is different per eye**
+   - This creates natural parallax based on the physical lens positions
+   - However, both eyes still sample from the **same desktop texture** - they just view it from slightly different angles
+
+3. **Hardware Capability**:
+   - Takes advantage of the glasses' full resolution capability (3840x1080 vs 1920x1080)
+   - Some glasses support higher refresh rates in SBS mode
+
+**Important Clarification**: SBS mode does **NOT** enable a "wider desktop" where you get more screen space. Both eyes still see the **same desktop content**, just with proper perspective correction. The double-width resolution (3840x1080) is used to send different perspective-corrected views to each eye, not to display more content.
+
+#### Why Disable SBS Mode?
+
+Users would disable SBS mode for:
+
+1. **Performance**:
+   - SBS mode requires rendering at double width (3840x1080)
+   - More resource intensive (as noted in README: "can be significantly more resource intensive")
+   - May cause performance issues on older hardware
+
+2. **Compatibility**:
+   - Some applications may not work well with the wider resolution
+   - May cause display issues with certain content
+
+3. **Simplicity**:
+   - Standard 1920x1080 mode is simpler and more compatible
+   - No need to worry about content being split across eyes incorrectly
+
+#### Technical Details
+
+- **Mode Switching**: The XR driver handles the hardware mode switch, which may take a moment
+- **State Synchronization**: Breezy Desktop polls the driver state to ensure SBS mode matches the UI setting
+- **Fast Switching**: There's a "fast-sbs-mode-switching" option that allows quicker transitions but may cause brief display interruptions
+
+#### Current Limitations
+
+- SBS mode requires glasses hardware support (not all models support it)
+- The mode switch is a hardware operation that may cause a brief display interruption
+- Performance impact is significant on lower-end hardware
+
+---
+
 ## References
 
 - **Extension Source**: `breezy-desktop/gnome/src/`
 - **XR Driver**: `XRLinuxDriver/`
 - **X11 Virtual Connector Design**: `breezy-desktop/doc_xfce4_xorg_xr_connector_design.md`
 - **Mutter DisplayConfig**: `breezy-desktop/gnome/src/dbus-interfaces/org.gnome.Mutter.DisplayConfig.xml`
+- **Shader Code**: `breezy-desktop/modules/sombrero/Sombrero.frag`
 
