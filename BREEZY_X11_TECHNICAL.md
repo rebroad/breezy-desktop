@@ -12,6 +12,7 @@ This document explains how Breezy Desktop functions on GNOME X11, including Rand
 4. [Cursor Handling and Duplication Issue](#cursor-handling-and-duplication-issue)
 5. [IMU Integration and Head Tracking](#imu-integration-and-head-tracking)
 6. [Architecture Comparison: Wayland vs X11](#architecture-comparison-wayland-vs-x11)
+7. [Roadmap: Virtual XR Outputs in Xorg](#roadmap-virtual-xr-outputs-in-xorg)
 
 ---
 
@@ -719,6 +720,168 @@ Users would disable SBS mode for:
 
 ---
 
+## Roadmap: Virtual XR Outputs in Xorg
+
+### Current Limitations
+
+The current X11 implementation has two major limitations:
+
+1. **Fixed Resolution Constraint**: Breezy Desktop must work with the physical XR glasses display at its native resolution (typically 1920x1080 or 3840x2160). The extension cannot create virtual displays of arbitrary resolution, unlike the Wayland implementation which uses Mutter's `RecordVirtual()` API.
+
+2. **Cursor Duplication**: On X11, both the system cursor (rendered by the X server) and the cloned 3D cursor (rendered by Breezy) are visible simultaneously. This occurs because:
+   - The X server manages cursor rendering at a lower level
+   - Mutter's cursor hiding (`set_pointer_visible(false)`) only affects Mutter's composited output
+   - The physical XR display receives cursor updates directly from X11
+
+### Solution: Virtual XR Outputs in Xorg
+
+We are implementing **virtual XR outputs** directly in the Xorg modesetting driver. This will enable Breezy Desktop to:
+
+1. **Create displays of any resolution**: Virtual outputs (XR-0, XR-1, etc.) can be created with arbitrary width, height, and refresh rate
+2. **Replace the physical XR display**: Instead of rendering to the fixed-resolution physical XR glasses display, Breezy can render to virtual outputs that are then composited and sent to the physical display
+3. **Fix cursor duplication**: By rendering to virtual outputs (which are software-based), the system cursor can be properly hidden, leaving only Breezy's 3D-rendered cursor visible
+
+### Technical Implementation
+
+#### Architecture Overview
+
+```
+┌────────────────────────────────────────────────────────┐
+│             X Server (X11) with Virtual XR Outputs     │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Modesetting Driver                              │  │
+│  │  - Virtual XR outputs (XR-0, XR-1, ...)          │  │
+│  │  - Dynamic creation/resize/delete                │  │
+│  │  - CRTC assignment for desktop content           │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  RandR Extension                                 │  │
+│  │  - Exposes virtual outputs to Display Settings   │  │
+│  │  - Mode configuration                            │  │
+│  └──────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+                        │
+                        │ RandR API
+                        ▼
+┌────────────────────────────────────────────────────────┐
+│         Mutter (X11 Backend)                           │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  DisplayConfig D-Bus Interface                   │  │
+│  │  - Enumerates virtual XR outputs                 │  │
+│  │  - Manages logical monitors                      │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Compositor                                      │  │
+│  │  - Composites virtual outputs                    │  │
+│  │  - Renders to physical XR display                │  │
+│  └──────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+                        │
+                        │ Composited output
+                        ▼
+┌────────────────────────────────────────────────────────┐
+│         Breezy Desktop Extension                       │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Virtual Display Management                      │  │
+│  │  - Creates virtual XR outputs via RandR          │  │
+│  │  - Configures resolution dynamically             │  │
+│  │  - 3D rendering to virtual outputs               │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Cursor Management                               │  │
+│  │  - Hides system cursor on virtual outputs        │  │
+│  │  - Renders 3D cursor only                        │  │
+│  └──────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+```
+
+#### Implementation Details
+
+**1. Virtual Output Creation**
+
+Virtual XR outputs are created in the modesetting driver (`drmmode_xr_virtual.c`):
+
+```c
+// Virtual outputs are created dynamically via RandR properties
+// XR-Manager output (XR-Manager) is used for control
+// Virtual outputs (XR-0, XR-1, ...) are created on demand
+
+drmmode_xr_create_virtual_output(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
+                                 const char *name, int width, int height, int refresh)
+```
+
+**2. RandR Integration**
+
+Virtual outputs are exposed through RandR:
+- They appear in `xrandr --listoutputs` as `XR-0`, `XR-1`, etc.
+- They are visible in Display Settings GUI (XFCE4, GNOME)
+- They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
+
+**3. CRTC Assignment**
+
+**Current Status**: Virtual outputs are created but cannot be enabled via Display Settings because they lack CRTC assignments. A CRTC (Cathode Ray Tube Controller) is required to drive an output.
+
+**Solution**: Virtual outputs need to be assigned to CRTCs to display desktop content. Options:
+- **Option A**: Assign to existing hardware CRTCs (may cause conflicts with physical displays)
+- **Option B**: Create virtual CRTCs (software-based, similar to the vfb driver)
+
+**4. Resolution Flexibility**
+
+Once CRTCs are assigned, virtual outputs can:
+- Be created with any resolution (e.g., 2560x1440, 3840x2160, custom aspect ratios)
+- Be resized dynamically via RandR properties
+- Support multiple virtual displays simultaneously (XR-0, XR-1, etc.)
+
+**5. Cursor Duplication Fix**
+
+By rendering to virtual outputs instead of the physical XR display:
+- The system cursor can be hidden on virtual outputs (X11 cursor hiding works for software outputs)
+- Only Breezy's 3D-rendered cursor will be visible
+- The physical XR display receives the composited output (including the 3D cursor) from Mutter
+
+### Current Status
+
+**✅ Completed**:
+- Virtual XR output creation infrastructure in modesetting driver
+- RandR integration (outputs appear in `xrandr` and Display Settings)
+- Dynamic output creation/resize/delete via RandR properties
+- XR-Manager control output for managing virtual outputs
+- `non_desktop` property preservation in RandR
+
+**🚧 In Progress**:
+- CRTC assignment for virtual outputs (required for enabling outputs)
+- Testing with Display Settings GUI (XFCE4, GNOME)
+
+**📋 Planned**:
+- Integration with Breezy Desktop extension
+- Dynamic resolution switching
+- Cursor hiding on virtual outputs
+- Performance optimization
+
+### Benefits
+
+Once complete, this implementation will provide:
+
+1. **Resolution Independence**: Breezy Desktop can create virtual displays of any resolution, not limited by the physical XR glasses hardware
+2. **Multiple Virtual Displays**: Support for multiple virtual outputs (XR-0, XR-1, etc.) for multi-monitor setups
+3. **Cursor Fix**: Eliminates the cursor duplication issue by rendering to virtual outputs where cursor hiding works correctly
+4. **Better Integration**: Virtual outputs appear in standard Display Settings tools, making them easier to configure
+5. **Wayland Parity**: Brings X11 functionality closer to the Wayland implementation's virtual display capabilities
+
+### Migration Path
+
+When this feature is complete, Breezy Desktop on X11 will:
+
+1. **Detect virtual XR outputs** via Mutter's DisplayConfig interface
+2. **Create virtual outputs** with desired resolution (instead of using physical XR display directly)
+3. **Render 3D content** to virtual outputs
+4. **Hide system cursor** on virtual outputs (fixing duplication)
+5. **Composit to physical display** via Mutter (the physical XR glasses display becomes a "sink" for the composited virtual outputs)
+
+This approach maintains compatibility with existing X11 infrastructure while providing the flexibility needed for advanced XR desktop experiences.
+
+---
+
 ## References
 
 - **Extension Source**: `breezy-desktop/gnome/src/`
@@ -726,4 +889,5 @@ Users would disable SBS mode for:
 - **X11 Virtual Connector Design**: `breezy-desktop/doc_xfce4_xorg_xr_connector_design.md`
 - **Mutter DisplayConfig**: `breezy-desktop/gnome/src/dbus-interfaces/org.gnome.Mutter.DisplayConfig.xml`
 - **Shader Code**: `breezy-desktop/modules/sombrero/Sombrero.frag`
+- **Xorg Virtual XR Implementation**: `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`
 
