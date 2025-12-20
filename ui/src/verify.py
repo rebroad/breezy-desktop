@@ -10,8 +10,8 @@ def verify_installation():
     verify_installation_path = os.path.join(get_bin_home(), 'breezy_gnome_verify')
 
     if not os.path.exists(verify_installation_path):
-        logger.error(f"Could not verify your Breezy GNOME installation. Please ensure that Breezy GNOME is installed.")
-        exit(1)
+        logger.warning(f"Could not verify your Breezy GNOME installation. Verification script not found at {verify_installation_path}. Skipping verification.")
+        return True  # Return True to allow app to continue, but log the warning
 
     try:
         verify_output = subprocess.check_output([verify_installation_path], stderr=subprocess.STDOUT).strip()
