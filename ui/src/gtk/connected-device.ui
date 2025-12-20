@@ -32,7 +32,7 @@
             <property name="icon-name">applications-system-symbolic</property>
             <property name="child">
               <object class="GtkBox">
-                <property name="orientation">2</property>
+                <property name="orientation">vertical</property>
                 <property name="margin-start">20</property>
                 <property name="margin-end">20</property>
                 <property name="spacing">20</property>
@@ -546,7 +546,7 @@
             <property name="icon-name">applications-system-symbolic</property>
             <property name="child">
               <object class="GtkBox">
-                <property name="orientation">2</property>
+                <property name="orientation">vertical</property>
                 <property name="margin-start">20</property>
                 <property name="margin-end">20</property>
                 <property name="spacing">20</property>
