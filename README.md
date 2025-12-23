@@ -76,24 +76,13 @@ Breezy GNOME is in AUR (but not pacman, yet). To install, run these commands fro
 
 ### XFCE4 Setup
 
-Breezy Desktop has **experimental support** for XFCE4 on X11, with some important caveats:
+Breezy Desktop has **experimental support** for XFCE4 on X11. Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's compositor APIs), XFCE4 requires virtual XR outputs in the Xorg modesetting driver.
 
-- Virtual display creation is more limited than on GNOME/KDE.
-- It relies on an Xorg dummy video driver (`xserver-xorg-video-dummy` / `xf86-video-dummy`) and custom Xorg configuration.
-- Virtual displays are rendered via a separate 3D renderer rather than the XFCE compositor.
+**Current Status:** Implementation is in progress. Virtual CRTC creation and XFCE4 backend/3D renderer work is ongoing.
 
-At a high level:
+For detailed setup instructions, architecture information, and current limitations, see [`xfce4/README.md`](xfce4/README.md).
 
-- The real GPU drives your normal XFCE desktop (Screen 0).
-- A dummy Xorg screen (Screen 1) provides a high‑resolution “virtual desktop” that Breezy’s XFCE4 backend and renderer use.
-
-**To use Breezy on XFCE4:**
-
-1. Ensure your glasses are in the [supported devices list](https://github.com/wheaney/XRLinuxDriver#supported-devices) and running the latest firmware.
-2. Follow the Xorg and backend setup instructions in [`xfce4/README.md`](xfce4/README.md).
-3. Once configured, launch Breezy Desktop from the applications menu as usual.
-
-The XFCE4 README is the single source of truth for detailed XFCE4/X11 setup and limitations.
+For comprehensive technical documentation, see [`BREEZY_X11_TECHNICAL.md`](BREEZY_X11_TECHNICAL.md).
 
 #### Nested-GNOME Setup
 A workable demo -- but not a great long-term solutions -- is to use your preferred desktop environment with a GNOME window open in nested mode. To do this:
