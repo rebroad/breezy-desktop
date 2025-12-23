@@ -136,37 +136,47 @@ Breezy Desktop renders desktop content in 3D space, accounting for:
 ### Rendering Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    GNOME Shell                          │
+┌────────────────────────────────────────────────────────┐
+│                    GNOME Shell                         │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  Breezy Desktop Extension                         │  │
+│  │  Breezy Desktop Extension                        │  │
 │  │  ┌────────────────────────────────────────────┐  │  │
 │  │  │  VirtualDisplaysActor                      │  │  │
 │  │  │  - Manages virtual monitor actors          │  │  │
-│  │  │  - Handles monitor placement/focus          │  │  │
+│  │  │  - Handles monitor placement/focus         │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  │  ┌────────────────────────────────────────────┐  │  │
-│  │  │  VirtualDisplayEffect (GLSL Shader)         │  │  │
-│  │  │  - 3D transformation                        │  │  │
-│  │  │  - IMU-based rotation                       │  │  │
-│  │  │  - FOV calculations                         │  │  │
+│  │  │  VirtualDisplayEffect (GLSL Shader)        │  │  │
+│  │  │  - 3D transformation                       │  │  │
+│  │  │  - IMU-based rotation                      │  │  │
+│  │  │  - FOV calculations                        │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  │  ┌────────────────────────────────────────────┐  │  │
-│  │  │  CursorManager                              │  │  │
-│  │  │  - Clones system cursor                     │  │  │
+│  │  │  CursorManager                             │  │  │
+│  │  │  - Clones system cursor                    │  │  │
 │  │  │  - Positions in 3D space                   │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────┘
                         │
-                        │ Renders to target monitor
+                        │ Composits overlay on top of normal desktop rendering
+                        │ Overlay positioned at target monitor location
                         │ (XR glasses physical display)
                         ▼
 ┌─────────────────────────────────────────────────────────┐
+│         Mutter Stage Compositor                         │
+│  - Normal desktop rendering to XR monitor               │
+│  - Overlay (black background + 3D-transformed clone)    │
+│    covers the XR monitor region                         │
+│  - System cursor rendered by X server (above overlay)   │
+└─────────────────────────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────┐
 │              XR Driver (xrDriver)                       │
-│  - Receives rendered frames                             │
-│  - Applies lens-specific transformations               │
-│  - Handles SBS mode splitting                            │
+│  - Receives composited frames                           │
+│  - Applies lens-specific transformations                │
+│  - Handles SBS mode splitting                           │
 │  - Outputs to physical glasses                          │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -186,7 +196,7 @@ let target_monitor = this._monitor_manager.getMonitorPropertiesList()?.find(
 
 #### 2. Virtual Display Overlay Creation
 
-An overlay is created that matches the physical monitor's dimensions:
+An overlay is created that matches the physical monitor's dimensions and is positioned at the monitor's location on Mutter's stage:
 
 ```javascript
 // From extension.js - _effect_enable()
@@ -196,7 +206,10 @@ this._virtual_displays_overlay = new St.Bin({
 });
 this._virtual_displays_overlay.set_position(targetMonitor.x, targetMonitor.y);
 this._virtual_displays_overlay.set_size(targetMonitor.width, targetMonitor.height);
+global.stage.add_child(this._virtual_displays_overlay);
 ```
+
+**Important**: This overlay covers the normal desktop rendering at the XR monitor location. Mutter still renders the desktop normally to the XR monitor, but the overlay (with black background and 3D-transformed content) sits on top of it, covering the original content. The system cursor remains visible because it's rendered at the X server level (not by Mutter), so it appears above the overlay. This overlay approach is specific to Mutter/GNOME and is not available in XFCE4, which is why XFCE4 requires a different strategy (capturing the desktop framebuffer and rendering directly to the XR display).
 
 #### 3. 3D Vertex Mesh Generation
 
@@ -899,17 +912,18 @@ By rendering to virtual outputs instead of the physical XR display:
 - XR-Manager control output for managing virtual outputs
 - `non_desktop` property preservation in RandR
 
-**🚧 In Progress (XFCE4 Priority)**:
-- XFCE4 backend implementation for Breezy Desktop
-- 3D renderer for XFCE4 (reading desktop framebuffer, applying 3D transformations, rendering to XR display)
-- RandR integration for XFCE4 display detection and management
-- IMU integration for XFCE4
-- Cursor management (hiding system cursor, rendering 3D cursor)
+**🚧 In Progress (XFCE4 Priority - Requires Virtual Outputs)**:
+- **Virtual CRTC creation for virtual outputs** (software-based CRTCs - **prerequisite for XFCE4**, not optional)
+- **Physical XR display detection and hiding via EDID** (mark as `non_desktop` to hide from Display Settings - **prerequisite**)
+- **XFCE4 backend implementation** for Breezy Desktop
+- **3D renderer for XFCE4** (reading from virtual output framebuffers, applying 3D transformations, rendering to physical XR display)
+- **RandR integration** for XFCE4 (virtual output creation/management, physical display hiding)
+- **IMU integration** for XFCE4
+- **Cursor management** (hiding system cursor on virtual outputs, rendering 3D cursor)
 
 **📋 Planned (Future Enhancements)**:
-- Virtual CRTC creation for virtual outputs (software-based CRTCs - deferred, not needed for initial XFCE4 support)
-- Physical XR display detection and hiding via EDID (deferred, can work with physical display directly for now)
-- Dynamic resolution switching via virtual outputs (deferred)
+- Multiple virtual displays support (XR-0, XR-1, etc.)
+- Dynamic resolution switching via virtual outputs
 - Performance optimization
 
 ### Benefits of Virtual XR Outputs (Future Enhancement)
@@ -922,39 +936,44 @@ Once virtual XR outputs are implemented, they will provide:
 4. **Better Integration**: Virtual outputs appear in standard Display Settings tools, making them easier to configure
 5. **Wayland Parity**: Brings X11 functionality closer to the Wayland implementation's virtual display capabilities
 
-*Note: These benefits apply to the future virtual XR outputs enhancement. Initial XFCE4 support will work with the physical XR display directly, similar to how GNOME currently works.*
+*Note: These benefits apply to virtual XR outputs, which are a prerequisite for XFCE4 support. Unlike GNOME which uses Mutter's overlay approach, XFCE4 requires virtual outputs to avoid double rendering.*
 
 ### XFCE4 Implementation Path
 
-For initial XFCE4 support, Breezy Desktop will:
+**Architecture**: Virtual XR outputs in Xorg are a **prerequisite** for efficient XFCE4 support. The workflow is:
 
-1. **Work with physical XR display directly**: The physical XR glasses display appears as a normal monitor in Display Settings (XFCE4). Users can configure it like any other display.
+1. **Virtual XR outputs are created** (XR-0, XR-1, etc.) via Xorg modesetting driver with virtual CRTCs
+2. **Physical XR display is hidden** from Display Settings (detected via EDID, marked as `non_desktop` or disabled)
+3. **XFCE compositor renders to virtual outputs** (XR-0, etc.) via virtual CRTCs (single render pass)
+4. **Breezy 3D renderer captures from virtual outputs** and reads the framebuffers (via DRM/X11 APIs)
+5. **Breezy applies 3D transformations** based on IMU data (head tracking, rotation, FOV calculations, display distance)
+6. **Breezy renders transformed content directly to the physical XR display** via OpenGL
 
-2. **Desktop compositor renders normally**: XFCE's compositor (XFWM4) renders desktop content to the physical XR display as it would to any monitor. The desktop appears in the XR glasses, but without 3D transformations.
+**Why virtual outputs are required**:
+- **Efficiency**: Single render pass from compositor (avoids double rendering)
+- **No visual artifacts**: Physical display only shows transformed content (compositor doesn't render to it)
+- **Cursor handling**: System cursor can be hidden on virtual outputs (software-based), eliminating cursor duplication
+- **Resolution flexibility**: Virtual outputs can be any resolution, not limited by physical display hardware
+- **Performance**: More efficient GPU usage compared to capturing/transforming from physical display
 
-3. **Breezy 3D renderer captures and transforms**: Breezy's 3D renderer:
-   - Captures the desktop framebuffer from the XR display (or reads it directly)
-   - Applies 3D transformations based on IMU data (head tracking, rotation, FOV calculations, display distance)
-   - Renders the transformed content back to the physical XR display
-   - Manages cursor (hides system cursor, renders 3D cursor)
+**Note**: Attempting to work directly with the physical XR display would require double rendering (compositor renders to XR display, then Breezy captures and re-renders to the same display), which is inefficient, causes visual artifacts, and doesn't solve the cursor duplication issue.
 
-4. **IMU integration**: Head tracking data from XRLinuxDriver is used to calculate the 3D transformations needed to make the desktop appear fixed in 3D space.
+**Implementation Path for XFCE4**:
 
-5. **Cursor handling**: The system cursor is hidden, and only Breezy's 3D-rendered cursor is visible in the XR display.
+1. **Complete virtual XR output infrastructure** in Xorg modesetting driver (virtual CRTCs, RandR integration)
+2. **Hide physical XR display** from Display Settings (detect via EDID, mark as `non_desktop`)
+3. **XFCE backend implementation** that:
+   - Creates/manages virtual XR outputs via RandR
+   - Configures XFCE compositor to render to virtual outputs
+4. **Breezy 3D renderer** that:
+   - Reads framebuffers from virtual XR outputs (via DRM/X11 APIs)
+   - Applies 3D transformations using OpenGL/GLSL shaders (port from GNOME shader)
+   - Renders transformed content to physical XR display via OpenGL
+   - Manages cursor (hides system cursor on virtual outputs, renders 3D cursor)
+5. **IMU integration**: Reads from `/dev/shm/breezy_desktop_imu` for head tracking data
 
-This approach allows XFCE4 support without requiring virtual XR outputs, making it achievable sooner. Virtual outputs can be added later as an enhancement for resolution flexibility and multiple virtual displays.
+**Note on GNOME Architecture (for comparison)**: On GNOME, Mutter renders the desktop normally to the XR monitor, but then a black overlay (`St.Bin`) is positioned at the monitor's location on Mutter's stage. This overlay contains a `Clutter.Clone` of the desktop content (`Main.layoutManager.uiGroup`) with 3D transformations applied via a GLSL shader. The overlay covers most of the original content, so only the 3D-transformed version is visible. The system cursor remains visible because it's rendered at the X server level and cannot be fully hidden on X11. This overlay approach is not available in XFCE4, which is why virtual outputs are necessary.
 
-### Future Enhancement: Virtual Outputs Migration Path
-
-When virtual XR outputs are implemented (future enhancement), the workflow would change to:
-
-1. Physical XR display would be hidden from Display Settings (marked as `non_desktop`)
-2. Virtual outputs (XR-0, XR-1, etc.) would appear in Display Settings
-3. Desktop compositor would render to virtual outputs via virtual CRTCs
-4. Breezy's 3D renderer would read virtual output framebuffers and render to the hidden physical display
-5. This would enable arbitrary resolutions and multiple virtual displays
-
-This future enhancement can be deferred since it's not required for initial XFCE4 support.
 
 ---
 
