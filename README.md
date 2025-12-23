@@ -103,38 +103,6 @@ For a double-wide screen, enable "widescreen mode" using the toggle in the Breez
 ### Upcoming Features
 * Port to KWin Effect (KDE Plasma support)
 
-### Breezy Desktop Pricing (Productivity Tier)
-
-Breezy Desktop for GNOME and KDE comes with 2 free trial months. After that, it requires an active Productivity Tier license. Payments are currently only accepted via [Ko-fi](https://ko-fi.com/wheaney). Here's the pricing structure:
-
-| Payment period | Price              | Upgrade window \*                     |
-| -------------- | ------------------ | ------------------------------------- |
-| Monthly        | $5 USD, recurring  | Within 7 days to upgrade to yearly    |
-| Yearly         | $50 USD, recurring | Within 90 days to upgrade to lifetime |
-| Lifetime       | $125 USD, one-time | &mdash;                               |
-
-\* If you pay for a plan and decide to upgrade to a longer-term plan, you may pay the difference within this window.
-
-If you have enough funds, your license will renew automatically within 7 days of expiration so you never experience an unexpected outage. Your device is never required to be online to continue using Productivity Tier features when enabled, but if your access expires while offline (even if you have enough funds), the features will be disabled until the next time your device goes online and the license can be refreshed. Be sure to check for expiration warnings prior to travel.
-
-#### Free Productivity Tier
-
-To make Breezy widely accessible, Productivity Tier is currently free of charge for qualified individuals using it for non-commercial purposes. Eligible groups include:
-
-* Students
-* Public school educators
-* Active duty service members and veterans of the U.S. Armed Forces
-* Individuals experiencing financial hardship or special circumstances that make electronic payments prohibitive
-* Individuals affected by active war zones or humanitarian crises (e.g. Ukrainian citizens)
-
-If you believe you qualify, please email wayne@xronlinux.com. You may be asked to provide documentation to verify your eligibility.
-
-#### Unlocking Productivity Tier
-
-After your first payment, you should immediately receive an email (to your Ko-fi email address) with a verification token. Once you receive that, enter it in the `License Details` view of the `Breezy Desktop` application, available from the menu in the top window bar.
-
-If you don't receive a token, you can request one in the `License Details` view by entering your email address.
-
 ## Breezy Vulkan
 
 ### Setup
@@ -167,36 +135,6 @@ To see all the configuration options available to you, type `xr_driver_cli` with
 #### Multi-tap to re-center or re-calibrate
 I've implemented an experimental multi-tap detection feature for screen **re-centering (2 taps)** and **re-calibrating the device (3 taps)**. To perform a multi-tap, you'll want to give decent taps on the top of the glasses. I tend to do this on the corner, right on top of the hinge. It should be a firm, sharp tap, and wait just a split second to do the second tap, as it needs to detect a slight pause in between (but it also shouldn't take more than a half a second between taps so don't wait too long).
 
-### Supporter Tier
-
-Breezy Vulkan's Supporter Tier features are enhancments to core functionality, offered as a way to reward those who have [supported the project](https://ko-fi.com/wheaney). Core features -- like Virtual Display mode, VR-Lite mouse/joystick modes, and Follow mode's display positioning/resizing settings -- will always remain available to everyone regardless of supporter status. Here's the pricing structure:
-
-| Payment period | Price              | Upgrade window \*                     |
-| -------------- | ------------------ | ------------------------------------- |
-| Yearly         | $10 USD, recurring | Within 90 days to upgrade to lifetime |
-| Lifetime       | $25 USD, one-time  | &mdash;                               |
-
-\* If you pay for a plan and decide to upgrade to a longer-term plan, you may pay the difference within this window.
-
-If you have enough funds, your access will renew automatically within 7 days of expiration so you never experience an unexpected outage. Your device is never required to be online to continue using Supporter Tier features when enabled, but if your access expires while offline (even if you have enough funds), the features will be disabled until the next time your device goes online and the license can be refreshed. Be sure to check for expiration warnings prior to travel.
-
-Features currently offered:
-* Smooth Follow (in Follow mode)
-* Automatic Recentering (in Virtual Display mode)
-* Side-by-side support (in Virtual Display mode)
-
-#### Unlocking Supporter Tier
-
-If you donate at least $10, you should immediately receive an email (to your Ko-fi email address) with a verification token. If you don't, request it using the config script: 
-```bash
-xr_driver_cli --request-token [emailAddress]
-```
-
-Once you have a token, verify it using:
-```bash
-xr_driver_cli --verify-token [token]
-xr_driver_cli --refresh-license
-```
 
 ### Disabling
 
@@ -214,23 +152,3 @@ If you wish to completely remove the installation:
   * If you installed *via the setup script* run the following: `~/.local/bin/breezy_gnome_uninstall`
   * If you installed via `yay` run the following: `pacman -R breezy-desktop-gnome-git`, you may also want to uninstall the base driver with `pacman -R xr-driver-breezy-gnome-git`
 * For **Breezy Vulkan** run the following: `~/.local/bin/breezy_vulkan_uninstall`. This won't uninstall the base driver package, follow the instructions at the end of the uninstallation to do this manually.
-
-## Data Privacy Notice
-
-Your right to privacy and the protection of your personal data are baked into every decision around how your personal data is collected, handled and stored. Your personal data will never be shared, sold, or distributed in any form.
-
-### Data Collected
-
-In order to provide you with Supporter Tier features, this application and its backend services have to collect the following pieces of personal information:
-
-* Your email address is sent to this application's backend server from either the payment vendor (Ko-fi) or from your device (at your request). Your email address may be used immediately upon receipt in its unaltered form to send you a transactional email, but it is then hashed prior to storage. The unaltered form of your email address is never stored and can no longer be referenced. The hashed value is stored for later reference.
-  * Other personal data may be sent from the payment vendor, but is never utilized nor stored. 
-* Your device's MAC address is hashed on your device. It never leaves your device in its original, unaltered form. The hashed value is sent to this application's backend server and stored for later reference, and -- up to version 0.8.7 -- to Google Analytics.
-
-Hashing functions are a one-way process that serve to anonymize your personal data by irreversibly changing them. Once hashed, they can never be unhashed or traced back to their original values.
-
-### Contact
-
-For inquires about data privacy or any related concerns, please contact:
-
-Wayne Heaney - **wayne@xronlinux.com**
