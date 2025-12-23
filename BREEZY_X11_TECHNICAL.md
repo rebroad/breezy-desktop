@@ -720,22 +720,59 @@ Users would disable SBS mode for:
 
 ---
 
-## Roadmap: Virtual XR Outputs in Xorg
+## 7. Roadmap: XFCE4 Support (Priority) and Future Virtual XR Outputs
 
-### Current Limitations
+**Current Status**: Breezy Desktop works on X11 under GNOME. This roadmap focuses on:
+1. **XFCE4 Support (Priority)**: Getting Breezy Desktop working on XFCE4
+2. **Future Enhancement**: Virtual XR outputs in Xorg (can be deferred since GNOME works without them)
 
-The current X11 implementation has two major limitations:
+### 7.1 XFCE4 Support Roadmap (Immediate Priority)
 
-1. **Fixed Resolution Constraint**: Breezy Desktop must work with the physical XR glasses display at its native resolution (typically 1920x1080 or 3840x2160). The extension cannot create virtual displays of arbitrary resolution, unlike the Wayland implementation which uses Mutter's `RecordVirtual()` API.
+Since GNOME support is already working, our immediate focus is on XFCE4 support. Unlike GNOME which uses Mutter (a compositor with 3D rendering capabilities), XFCE4 does not have built-in 3D rendering capabilities, so Breezy Desktop needs to provide its own 3D renderer.
 
-2. **Cursor Duplication**: On X11, both the system cursor (rendered by the X server) and the cloned 3D cursor (rendered by Breezy) are visible simultaneously. This occurs because:
-   - The X server manages cursor rendering at a lower level
-   - Mutter's cursor hiding (`set_pointer_visible(false)`) only affects Mutter's composited output
-   - The physical XR display receives cursor updates directly from X11
+#### XFCE4 Architecture Differences
 
-### Solution: Virtual XR Outputs in Xorg
+XFCE4 differs from GNOME in several key ways:
 
-We are implementing **virtual XR outputs** directly in the Xorg modesetting driver. This will enable Breezy Desktop to:
+1. **No Built-in 3D Compositor**: XFCE4 uses XFWM4 compositor which handles 2D window composition but does not have 3D rendering capabilities
+2. **Different Display Management**: XFCE4 uses RandR directly (via `xfsettingsd`) rather than Mutter's DisplayConfig D-Bus interface
+3. **3D Renderer Requirement**: Breezy Desktop must provide its own 3D renderer for XFCE4 that:
+   - Captures the desktop content (from the physical XR display)
+   - Applies 3D transformations (IMU-based head tracking, FOV calculations, display distance)
+   - Renders the transformed content to the physical XR display
+
+#### XFCE4 Implementation Tasks
+
+**🚧 Immediate Priority**:
+- [ ] XFCE4 backend implementation for Breezy Desktop
+- [ ] 3D renderer integration for XFCE4 (reading desktop framebuffer, applying 3D transformations, rendering to XR display)
+- [ ] RandR integration for XFCE4 (detecting XR displays, managing display configuration)
+- [ ] IMU integration (head tracking via XRLinuxDriver)
+- [ ] Cursor management (hiding system cursor, rendering 3D cursor)
+- [ ] Testing and validation on XFCE4
+
+**📋 Future Enhancements** (can be done after XFCE4 works):
+- Virtual XR outputs in Xorg (for resolution flexibility)
+- Multiple virtual displays support
+- Dynamic resolution switching
+
+### 7.2 Future Enhancement: Virtual XR Outputs in Xorg
+
+This section outlines future enhancements for virtual XR outputs in Xorg. These can be deferred since GNOME support already works. Virtual XR outputs would provide:
+- Arbitrary resolution support (not limited to physical display resolution)
+- Multiple virtual displays
+- Better cursor management
+- Resolution independence
+
+#### Current Limitations (When Using Physical Display Directly)
+
+1. **Fixed Resolution**: The physical XR display has a fixed resolution (e.g., 1920x1080 or 3840x2160) that cannot be changed
+2. **Cursor Duplication**: Two mouse cursors may be visible - one from the system and one from Breezy's 3D rendering
+3. **No Virtual Display Support**: Cannot create virtual displays of arbitrary resolutions for AR experiences (this is a future enhancement)
+
+#### Solution: Virtual XR Outputs in Xorg (Future)
+
+We plan to implement **virtual XR outputs** directly in the Xorg modesetting driver. This will enable Breezy Desktop to:
 
 1. **Create displays of any resolution**: Virtual outputs (XR-0, XR-1, etc.) can be created with arbitrary width, height, and refresh rate
 2. **Replace the physical XR display**: Instead of rendering to the fixed-resolution physical XR glasses display, Breezy can render to virtual outputs that are then composited and sent to the physical display
@@ -743,7 +780,9 @@ We are implementing **virtual XR outputs** directly in the Xorg modesetting driv
 
 ### Technical Implementation
 
-#### Architecture Overview
+#### Architecture Overview (Future Enhancement)
+
+*Note: This architecture diagram shows the future virtual XR outputs approach. For initial XFCE4 support, we'll work with the physical XR display directly.*
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -798,9 +837,9 @@ We are implementing **virtual XR outputs** directly in the Xorg modesetting driv
 
 #### Implementation Details
 
-**1. Virtual Output Creation**
+**1. Virtual Output Creation** (Future Enhancement)
 
-Virtual XR outputs are created in the modesetting driver (`drmmode_xr_virtual.c`):
+Virtual XR outputs would be created in the modesetting driver (`drmmode_xr_virtual.c`):
 
 ```c
 // Virtual outputs are created dynamically via RandR properties
@@ -811,66 +850,71 @@ drmmode_xr_create_virtual_output(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
                                  const char *name, int width, int height, int refresh)
 ```
 
-**2. RandR Integration**
+**2. RandR Integration** (Future Enhancement)
 
-Virtual outputs are exposed through RandR:
+Virtual outputs would be exposed through RandR:
 - They appear in `xrandr --listoutputs` as `XR-0`, `XR-1`, etc.
 - They are visible in Display Settings GUI (XFCE4, GNOME)
 - They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
 
-**3. CRTC Assignment and Rendering Pipeline**
+**3. CRTC Assignment and Rendering Pipeline** (Future Enhancement)
 
-**Approach**: Virtual outputs use **virtual CRTCs** (software-based) that allow the desktop compositor (Mutter) to render to them. The **3D renderer acts as the "driver"** for these virtual outputs:
+**Approach**: Virtual outputs would use **virtual CRTCs** (software-based) that allow the desktop compositor to render to them. The **3D renderer acts as the "driver"** for these virtual outputs:
 
-- **Virtual CRTCs**: Software-based CRTCs are created for virtual outputs (XR-0, XR-1, etc.)
-- **Desktop Compositor Rendering**: Mutter renders desktop content to virtual outputs via these virtual CRTCs
-- **3D Renderer as CRTC Driver**: Breezy's 3D renderer reads the framebuffers from virtual outputs, applies 3D transformations (IMU-based rotation, FOV, etc.), and composites the result to the physical XR display
-- **Physical Display Hidden**: The physical XR display (e.g., XREAL glasses) must be marked as `non_desktop` so it doesn't appear in Display Settings. Display Settings only shows virtual outputs (the 2D desktop arrangement), not the physical XR sink. **Note**: Unlike some VR headsets (Valve Index, HTC Vive, Oculus Rift), XREAL/VITURE glasses are NOT automatically marked as non-desktop by the kernel - we need to detect them via EDID vendor/product strings and mark them explicitly.
+- **Virtual CRTCs**: Software-based CRTCs would be created for virtual outputs (XR-0, XR-1, etc.)
+- **Desktop Compositor Rendering**: The compositor (Mutter for GNOME, or XFCE compositor) would render desktop content to virtual outputs via these virtual CRTCs
+- **3D Renderer as CRTC Driver**: Breezy's 3D renderer would read the framebuffers from virtual outputs, apply 3D transformations (IMU-based rotation, FOV, etc.), and composite the result to the physical XR display
+- **Physical Display Hidden**: The physical XR display (e.g., XREAL glasses) would be marked as `non_desktop` so it doesn't appear in Display Settings. Display Settings would only show virtual outputs (the 2D desktop arrangement), not the physical XR sink. **Note**: Unlike some VR headsets (Valve Index, HTC Vive, Oculus Rift), XREAL/VITURE glasses are NOT automatically marked as non-desktop by the kernel - we would need to detect them via EDID vendor/product strings and mark them explicitly.
 
-**Key Insight**: The physical XR display is treated as a "sink" that receives the final 3D-rendered output. It's not part of the 2D desktop layout, so it must be hidden from Display Settings. Virtual outputs (XR-0, XR-1) are the outputs that appear in Display Settings and represent the 2D desktop arrangement that gets transformed by the 3D renderer.
+**Key Insight**: The physical XR display would be treated as a "sink" that receives the final 3D-rendered output. It's not part of the 2D desktop layout, so it would be hidden from Display Settings. Virtual outputs (XR-0, XR-1) would be the outputs that appear in Display Settings and represent the 2D desktop arrangement that gets transformed by the 3D renderer.
 
-**Note on Desktop Environments**:
-- **GNOME**: Uses Mutter as the compositor, which can composite virtual outputs and render to the physical XR display
-- **XFCE4**: Does not have built-in 3D rendering capabilities. Breezy Desktop will need to provide its own 3D renderer that reads virtual output framebuffers, applies 3D transformations (IMU-based head tracking, FOV calculations, etc.), and renders to the physical XR display
+**Note**: This virtual output approach is a future enhancement. For initial XFCE4 support, we can work with the physical XR display directly (similar to how GNOME works currently).
 
-**4. Resolution Flexibility**
+**4. Resolution Flexibility** (Future Enhancement)
 
-Once CRTCs are assigned, virtual outputs can:
-- Be created with any resolution (e.g., 2560x1440, 3840x2160, custom aspect ratios)
-- Be resized dynamically via RandR properties
-- Support multiple virtual displays simultaneously (XR-0, XR-1, etc.)
+Once CRTCs are assigned, virtual outputs would enable:
+- Creating displays of any resolution (e.g., 2560x1440, 3840x2160, custom aspect ratios)
+- Resizing dynamically via RandR properties
+- Supporting multiple virtual displays simultaneously (XR-0, XR-1, etc.)
 
-**5. Cursor Duplication Fix**
+**5. Cursor Duplication Fix** (Future Enhancement)
 
 By rendering to virtual outputs instead of the physical XR display:
-- The system cursor can be hidden on virtual outputs (X11 cursor hiding works for software outputs)
-- Only Breezy's 3D-rendered cursor will be visible
-- The physical XR display receives the composited output (including the 3D cursor) from Mutter
+- The system cursor could be hidden on virtual outputs (X11 cursor hiding works for software outputs)
+- Only Breezy's 3D-rendered cursor would be visible
+- The physical XR display would receive the composited output (including the 3D cursor)
 
 ### Current Status
 
-**✅ Completed**:
+**✅ Completed (GNOME)**:
+- Breezy Desktop working on X11 under GNOME
+- Mutter integration for 3D rendering
+- DisplayConfig D-Bus interface support
+- IMU integration via XRLinuxDriver
+
+**✅ Completed (Xorg Infrastructure - Future Use)**:
 - Virtual XR output creation infrastructure in modesetting driver
 - RandR integration (outputs appear in `xrandr` and Display Settings)
 - Dynamic output creation/resize/delete via RandR properties
 - XR-Manager control output for managing virtual outputs
 - `non_desktop` property preservation in RandR
 
-**🚧 In Progress**:
-- Virtual CRTC creation for virtual outputs (software-based CRTCs that allow desktop compositor rendering)
-- Physical XR display detection and hiding (detecting XREAL/VITURE glasses via EDID vendor/product strings and marking them as non-desktop to hide from Display Settings)
-- 3D renderer integration (reading virtual output framebuffers and rendering to physical XR display)
-- Testing with Display Settings GUI (XFCE4, GNOME)
+**🚧 In Progress (XFCE4 Priority)**:
+- XFCE4 backend implementation for Breezy Desktop
+- 3D renderer for XFCE4 (reading desktop framebuffer, applying 3D transformations, rendering to XR display)
+- RandR integration for XFCE4 display detection and management
+- IMU integration for XFCE4
+- Cursor management (hiding system cursor, rendering 3D cursor)
 
-**📋 Planned**:
-- Integration with Breezy Desktop extension
-- Dynamic resolution switching
-- Cursor hiding on virtual outputs
+**📋 Planned (Future Enhancements)**:
+- Virtual CRTC creation for virtual outputs (software-based CRTCs - deferred, not needed for initial XFCE4 support)
+- Physical XR display detection and hiding via EDID (deferred, can work with physical display directly for now)
+- Dynamic resolution switching via virtual outputs (deferred)
 - Performance optimization
 
-### Benefits
+### Benefits of Virtual XR Outputs (Future Enhancement)
 
-Once complete, this implementation will provide:
+Once virtual XR outputs are implemented, they will provide:
 
 1. **Resolution Independence**: Breezy Desktop can create virtual displays of any resolution, not limited by the physical XR glasses hardware
 2. **Multiple Virtual Displays**: Support for multiple virtual outputs (XR-0, XR-1, etc.) for multi-monitor setups
@@ -878,25 +922,39 @@ Once complete, this implementation will provide:
 4. **Better Integration**: Virtual outputs appear in standard Display Settings tools, making them easier to configure
 5. **Wayland Parity**: Brings X11 functionality closer to the Wayland implementation's virtual display capabilities
 
-### Migration Path
+*Note: These benefits apply to the future virtual XR outputs enhancement. Initial XFCE4 support will work with the physical XR display directly, similar to how GNOME currently works.*
 
-When this feature is complete, Breezy Desktop on X11 will:
+### XFCE4 Implementation Path
 
-1. **Physical XR display is hidden**: The physical XR glasses display is detected via EDID vendor/product strings (XREAL, VITURE, etc.) and marked as `non_desktop`, so it doesn't appear in Display Settings. It acts as a "sink" that receives the final 3D-rendered output. **Note**: Unlike some VR headsets (Valve Index, HTC Vive, Oculus Rift), XREAL/VITURE glasses are NOT automatically marked as non-desktop by the kernel - we need to detect and mark them explicitly.
+For initial XFCE4 support, Breezy Desktop will:
 
-2. **Virtual outputs appear in Display Settings**: Virtual XR outputs (XR-0, XR-1, etc.) appear in Display Settings as normal displays. Users can configure their 2D desktop arrangement using these virtual outputs.
+1. **Work with physical XR display directly**: The physical XR glasses display appears as a normal monitor in Display Settings (XFCE4). Users can configure it like any other display.
 
-3. **Desktop compositor renders to virtual outputs**: The desktop compositor (Mutter for GNOME, or XFCE's compositor) renders desktop content to virtual outputs via virtual CRTCs (software-based). The desktop content is rendered normally, as if virtual outputs were physical displays.
+2. **Desktop compositor renders normally**: XFCE's compositor (XFWM4) renders desktop content to the physical XR display as it would to any monitor. The desktop appears in the XR glasses, but without 3D transformations.
 
-4. **3D renderer reads and transforms**:
-   - **GNOME**: Mutter can composite virtual outputs with 3D transformations applied
-   - **XFCE4**: Breezy's 3D renderer reads the framebuffers from virtual outputs, applies 3D transformations (IMU-based head tracking, FOV calculations, display distance, etc.), and composites the result. XFCE4 doesn't have built-in 3D rendering capabilities, so Breezy provides its own renderer.
+3. **Breezy 3D renderer captures and transforms**: Breezy's 3D renderer:
+   - Captures the desktop framebuffer from the XR display (or reads it directly)
+   - Applies 3D transformations based on IMU data (head tracking, rotation, FOV calculations, display distance)
+   - Renders the transformed content back to the physical XR display
+   - Manages cursor (hides system cursor, renders 3D cursor)
 
-5. **Final output to physical display**: The 3D-rendered content is sent to the physical XR display (which is hidden from Display Settings). This is where the user sees the final result.
+4. **IMU integration**: Head tracking data from XRLinuxDriver is used to calculate the 3D transformations needed to make the desktop appear fixed in 3D space.
 
-6. **Cursor handling**: The system cursor can be hidden on virtual outputs (since they're software-based), eliminating the cursor duplication issue. Only Breezy's 3D-rendered cursor is visible.
+5. **Cursor handling**: The system cursor is hidden, and only Breezy's 3D-rendered cursor is visible in the XR display.
 
-This approach maintains compatibility with existing X11 infrastructure while providing the flexibility needed for advanced XR desktop experiences.
+This approach allows XFCE4 support without requiring virtual XR outputs, making it achievable sooner. Virtual outputs can be added later as an enhancement for resolution flexibility and multiple virtual displays.
+
+### Future Enhancement: Virtual Outputs Migration Path
+
+When virtual XR outputs are implemented (future enhancement), the workflow would change to:
+
+1. Physical XR display would be hidden from Display Settings (marked as `non_desktop`)
+2. Virtual outputs (XR-0, XR-1, etc.) would appear in Display Settings
+3. Desktop compositor would render to virtual outputs via virtual CRTCs
+4. Breezy's 3D renderer would read virtual output framebuffers and render to the hidden physical display
+5. This would enable arbitrary resolutions and multiple virtual displays
+
+This future enhancement can be deferred since it's not required for initial XFCE4 support.
 
 ---
 
