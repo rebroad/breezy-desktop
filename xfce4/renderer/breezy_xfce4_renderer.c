@@ -31,6 +31,7 @@
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -101,8 +102,7 @@ struct CaptureThread {
     uint32_t crtc_id;
     uint32_t fb_id;  // Current framebuffer ID
     drmModeFBPtr fb_info;  // Current framebuffer info
-    void *fb_map;  // Mapped framebuffer memory
-    size_t fb_size;  // Framebuffer size in bytes
+    uint32_t fb_handle;  // Framebuffer handle for DMA-BUF export
 };
 
 // Render thread
@@ -261,24 +261,32 @@ static void *capture_thread_func(void *arg) {
     struct timespec next_frame_time;
     clock_gettime(CLOCK_MONOTONIC, &next_frame_time);
     
-    // Allocate capture buffer
-    size_t frame_size = thread->width * thread->height * 4;
-    uint8_t *capture_buffer = malloc(frame_size);
-    if (!capture_buffer) {
-        fprintf(stderr, "[Capture] Failed to allocate capture buffer\n");
-        return NULL;
-    }
-    
     while (!thread->stop_requested) {
-        // Capture from virtual XR connector via DRM/KMS
-        if (capture_drm_frame(thread, capture_buffer, thread->width, thread->height) == 0) {
-            // Write to ring buffer
-            write_frame(&thread->renderer->frame_buffer,
-                       capture_buffer,
-                       thread->width,
-                       thread->height);
+        // Export DRM framebuffer as DMA-BUF (zero-copy)
+        int dmabuf_fd = -1;
+        uint32_t format, stride, modifier;
+        
+        if (export_drm_framebuffer_to_dmabuf(thread, &dmabuf_fd, &format, &stride, &modifier) == 0) {
+            RenderThread *render_thread = &thread->renderer->render_thread;
+            
+            // Close old fd if framebuffer changed
+            if (render_thread->current_dmabuf_fd >= 0 && 
+                thread->fb_id != render_thread->current_fb_id) {
+                close(render_thread->current_dmabuf_fd);
+            }
+            
+            // Pass DMA-BUF info to render thread
+            render_thread->current_dmabuf_fd = dmabuf_fd;
+            render_thread->current_fb_id = thread->fb_id;
+            render_thread->current_format = format;
+            render_thread->current_stride = stride;
+            render_thread->current_modifier = modifier;
+            
+            // Signal new frame available (marker frame - no pixel copy)
+            uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
+            write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
         } else {
-            // Capture failed, wait a bit
+            // Export failed, wait a bit
             usleep(10000);  // 10ms
         }
         
@@ -460,15 +468,6 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
         cleanup_opengl_context(thread);
         return -1;
     }
-    
-    // Create texture for captured frames
-    glGenTextures(1, &thread->frame_texture);
-    glBindTexture(GL_TEXTURE_2D, thread->frame_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
     
     printf("[Render] Render thread initialized successfully\n");
     return 0;
