@@ -28,7 +28,7 @@ typedef struct {
 
 // DRM capture functions (in drm_capture.c)
 int init_drm_capture(CaptureThread *thread);
-int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t width, uint32_t height);
+int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint32_t *format, uint32_t *stride, uint32_t *modifier);
 void cleanup_drm_capture(CaptureThread *thread);
 
 // IMU reader functions (in imu_reader.c)
