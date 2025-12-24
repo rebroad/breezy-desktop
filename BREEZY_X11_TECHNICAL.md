@@ -797,7 +797,7 @@ For maximum FPS and best user experience, the XFCE4 renderer is implemented in *
 - [ ] XFCE4 backend integration with Breezy Desktop UI
 - [ ] Testing and validation on XFCE4
 
-**📋 Future Enhancements**:
+**📋 Planned Enhancements**:
 - Multiple virtual displays support (XR-0, XR-1, etc.)
 - Dynamic resolution switching
 - Curved display support
@@ -902,27 +902,25 @@ Virtual outputs are exposed through RandR:
 - They are visible in Display Settings GUI (XFCE4, GNOME)
 - They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
 
-**3. CRTC Assignment and Rendering Pipeline** (Future Enhancement)
+**3. CRTC Assignment and Rendering Pipeline**
 
-**Approach**: Virtual outputs would use **virtual CRTCs** (software-based) that allow the desktop compositor to render to them. The **3D renderer acts as the "driver"** for these virtual outputs:
+**Approach**: Virtual outputs use **virtual CRTCs** (software-based) that allow the desktop compositor to render to them. The **3D renderer acts as the "driver"** for these virtual outputs:
 
-- **Virtual CRTCs**: Software-based CRTCs would be created for virtual outputs (XR-0, XR-1, etc.)
-- **Desktop Compositor Rendering**: The compositor (Mutter for GNOME, or XFCE compositor) would render desktop content to virtual outputs via these virtual CRTCs
-- **3D Renderer as CRTC Driver**: Breezy's 3D renderer would read the framebuffers from virtual outputs, apply 3D transformations (IMU-based rotation, FOV, etc.), and composite the result to the physical XR display
-- **Physical Display Hidden**: The physical XR display (e.g., XREAL glasses) would be marked as `non_desktop` so it doesn't appear in Display Settings. Display Settings would only show virtual outputs (the 2D desktop arrangement), not the physical XR sink. **Note**: Unlike some VR headsets (Valve Index, HTC Vive, Oculus Rift), XREAL/VITURE glasses are NOT automatically marked as non-desktop by the kernel - we would need to detect them via EDID vendor/product strings and mark them explicitly.
+- **Virtual CRTCs**: Software-based CRTCs are created for virtual outputs (XR-0, XR-1, etc.)
+- **Desktop Compositor Rendering**: The compositor (Mutter for GNOME, or XFCE compositor) renders desktop content to virtual outputs via these virtual CRTCs
+- **3D Renderer as CRTC Driver**: Breezy's 3D renderer reads the framebuffers from virtual outputs, applies 3D transformations (IMU-based rotation, FOV, etc.), and composites the result to the physical XR display
+- **Physical Display Hidden**: The physical XR display (e.g., XREAL glasses) is marked as `non_desktop` via EDID detection so it doesn't appear in Display Settings. Display Settings only show virtual outputs (the 2D desktop arrangement), not the physical XR sink.
 
-**Key Insight**: The physical XR display would be treated as a "sink" that receives the final 3D-rendered output. It's not part of the 2D desktop layout, so it would be hidden from Display Settings. Virtual outputs (XR-0, XR-1) would be the outputs that appear in Display Settings and represent the 2D desktop arrangement that gets transformed by the 3D renderer.
+**Key Insight**: The physical XR display is treated as a "sink" that receives the final 3D-rendered output. It's not part of the 2D desktop layout, so it's hidden from Display Settings. Virtual outputs (XR-0, XR-1) are the outputs that appear in Display Settings and represent the 2D desktop arrangement that gets transformed by the 3D renderer.
 
-**Note**: This virtual output approach is a future enhancement. For initial XFCE4 support, we can work with the physical XR display directly (similar to how GNOME works currently).
+**4. Resolution Flexibility**
 
-**4. Resolution Flexibility** (Future Enhancement)
-
-Once CRTCs are assigned, virtual outputs would enable:
+Virtual outputs enable:
 - Creating displays of any resolution (e.g., 2560x1440, 3840x2160, custom aspect ratios)
 - Resizing dynamically via RandR properties
 - Supporting multiple virtual displays simultaneously (XR-0, XR-1, etc.)
 
-**5. Cursor Duplication Fix** (Future Enhancement)
+**5. Cursor Duplication Fix**
 
 By rendering to virtual outputs instead of the physical XR display:
 - The system cursor can be hidden on virtual outputs (X11 cursor hiding works for software outputs)
@@ -952,7 +950,7 @@ By rendering to virtual outputs instead of the physical XR display:
 - XFCE4 backend integration (calibration detection, XR-0 creation, AR mode enablement)
 - Integration testing
 
-**📋 Planned (Future Enhancements)**:
+**📋 Planned Enhancements**:
 - Multiple virtual displays support (XR-1, XR-2, etc.)
 - Performance optimization
 
