@@ -564,7 +564,7 @@ static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {
         GLuint texture = import_dmabuf_as_texture(thread, thread->current_dmabuf_fd,
                                                    width, height, format, stride, modifier);
         if (texture == 0) {
-            fprintf(stderr, "[Render] Failed to import DMA-BUF as texture\n");
+            log_error("Failed to import DMA-BUF as texture - rendering will be skipped\n");
             // Close fd on failure
             close(thread->current_dmabuf_fd);
             thread->current_dmabuf_fd = -1;
@@ -627,9 +627,16 @@ static void signal_handler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
+    // Initialize logging first
+    if (log_init() != 0) {
+        fprintf(stderr, "Warning: Failed to initialize logging, continuing with stderr output\n");
+    }
+    
     if (argc < 5) {
         fprintf(stderr, "Usage: %s <width> <height> <capture_fps> <render_fps>\n", argv[0]);
         fprintf(stderr, "Example: %s 1920 1080 60 90\n", argv[0]);
+        log_error("Invalid arguments: expected 4 arguments, got %d\n", argc - 1);
+        log_cleanup();
         return 1;
     }
     

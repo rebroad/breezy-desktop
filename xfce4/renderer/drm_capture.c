@@ -6,6 +6,7 @@
  */
 
 #include "breezy_xfce4_renderer.h"
+#include "logging.h"
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
@@ -249,11 +250,12 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
     #ifdef HAVE_DRM_PRIME_HANDLE_TO_FD
     ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
     #else
+    log_fallback("DRM Prime export", "Using ioctl fallback instead of libdrm drmPrimeHandleToFD");
     ret = drm_prime_handle_to_fd(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
     #endif
     
     if (ret < 0 || fd < 0) {
-        fprintf(stderr, "[DRM] Failed to export DMA-BUF: %s\n", strerror(errno));
+        log_error("Failed to export DMA-BUF: %s\n", strerror(errno));
         return -1;
     }
     
@@ -282,12 +284,18 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
     
     // Default to XRGB8888 if format not found
     if (*format == 0) {
+        log_fallback("DRM framebuffer format detection", "Using default XRGB8888 (could not query from properties)");
         *format = DRM_FORMAT_XRGB8888;
+    } else {
+        log_debug("DRM framebuffer format: 0x%x\n", *format);
     }
     
     // Default to linear modifier if not found
     if (*modifier == 0 || *modifier == DRM_FORMAT_MOD_INVALID) {
+        log_fallback("DRM framebuffer modifier detection", "Using default LINEAR modifier (could not query from properties)");
         *modifier = DRM_FORMAT_MOD_LINEAR;
+    } else {
+        log_debug("DRM framebuffer modifier: 0x%llx\n", (unsigned long long)*modifier);
     }
     
     return 0;

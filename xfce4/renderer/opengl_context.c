@@ -6,6 +6,7 @@
  */
 
 #include "breezy_xfce4_renderer.h"
+#include "logging.h"
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
@@ -210,10 +211,19 @@ void swap_buffers(RenderThread *thread) {
 static bool check_dmabuf_extensions(EGLDisplay egl_display) {
     const char *extensions = eglQueryString(egl_display, EGL_EXTENSIONS);
     if (!extensions) {
+        log_error("Failed to query EGL extensions\n");
         return false;
     }
     
-    return (strstr(extensions, "EGL_EXT_image_dma_buf_import") != NULL);
+    bool has_dmabuf = (strstr(extensions, "EGL_EXT_image_dma_buf_import") != NULL);
+    if (!has_dmabuf) {
+        log_fallback("EGL DMA-BUF import", "EGL_EXT_image_dma_buf_import extension not available - zero-copy will not work!");
+        log_debug("Available EGL extensions: %s\n", extensions);
+    } else {
+        log_debug("EGL DMA-BUF import extension available\n");
+    }
+    
+    return has_dmabuf;
 }
 
 // Import DMA-BUF file descriptor as OpenGL texture (zero-copy)
@@ -257,7 +267,10 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
         eglGetProcAddress("glEGLImageTargetTexture2DOES");
     
     if (!eglCreateImageKHR || !eglDestroyImageKHR || !glEGLImageTargetTexture2DOES) {
-        fprintf(stderr, "[EGL] Required function pointers not available\n");
+        log_fallback("EGL DMA-BUF import", "Required function pointers not available (eglCreateImageKHR/eglDestroyImageKHR/glEGLImageTargetTexture2DOES)");
+        if (!eglCreateImageKHR) log_debug("eglCreateImageKHR is NULL\n");
+        if (!eglDestroyImageKHR) log_debug("eglDestroyImageKHR is NULL\n");
+        if (!glEGLImageTargetTexture2DOES) log_debug("glEGLImageTargetTexture2DOES is NULL\n");
         return 0;
     }
     
@@ -293,9 +306,14 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
                                                EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
     if (egl_image == EGL_NO_IMAGE_KHR) {
         EGLint error = eglGetError();
-        fprintf(stderr, "[EGL] Failed to create image from DMA-BUF: 0x%x\n", error);
+        log_error("Failed to create EGL image from DMA-BUF (error: 0x%x) - zero-copy import failed!\n", error);
+        log_debug("DMA-BUF import params: width=%u, height=%u, format=0x%x, stride=%u, modifier=0x%llx\n",
+                  width, height, format, stride, (unsigned long long)modifier);
         return 0;
     }
+    
+    log_debug("Successfully created EGL image from DMA-BUF (width=%u, height=%u, format=0x%x)\n",
+              width, height, format);
     
     // Create or update OpenGL texture from EGL image
     GLuint texture = 0;
@@ -319,7 +337,7 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
     
     GLenum gl_error = glGetError();
     if (gl_error != GL_NO_ERROR) {
-        fprintf(stderr, "[GL] Error binding EGL image to texture: 0x%x\n", gl_error);
+        log_error("Error binding EGL image to texture: 0x%x - DMA-BUF import failed!\n", gl_error);
         eglDestroyImageKHR(egl_display, egl_image, NULL);
         return 0;
     }
@@ -335,8 +353,8 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
     // Store EGL image for cleanup later
     thread->frame_egl_image = egl_image;
     
-    printf("[EGL] DMA-BUF imported as texture: %dx%d, format=0x%x, stride=%u\n",
-           width, height, format, stride);
+    log_info("DMA-BUF successfully imported as texture (zero-copy): texture=%u, %dx%d, format=0x%x, stride=%u\n",
+             texture, width, height, format, stride);
     
     return texture;
 }
