@@ -1,0 +1,88 @@
+# Documentation Consolidation Plan
+
+## Current Document Structure
+
+### Main Document
+- **`BREEZY_X11_TECHNICAL.md`**: Main technical documentation (should be the primary reference)
+
+### Detailed Design Documents (Referenced from Main)
+- **`doc_xfce4_xorg_xr_connector_design.md`**: Detailed API design, data structures, code examples
+- **`XORG_XR_IMPLEMENTATION_STATUS.md`**: Implementation status tracking and remaining tasks
+
+### Implementation-Specific Docs (Keep Separate)
+- **`xfce4/renderer/IMPLEMENTATION_STATUS.md`**: Renderer implementation status
+- **`xfce4/renderer/TESTING_GUIDE.md`**: Testing procedures for XFCE4 renderer
+- **`xfce4/renderer/DMA_BUF_OPTIMIZATION.md`**: DMA-BUF optimization details
+- **`xfce4/renderer/PIPEWIRE_VS_DRM.md`**: Performance comparison
+
+## Duplication Analysis
+
+### Overlap Between Documents
+
+1. **BREEZY_X11_TECHNICAL.md Section 7.2** vs **doc_xfce4_xorg_xr_connector_design.md**:
+   - **Overlap**: Both describe virtual XR outputs architecture
+   - **Resolution**: BREEZY_X11_TECHNICAL should provide high-level overview, reference doc_xfce4 for details
+   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references doc_xfce4 for detailed design
+
+2. **BREEZY_X11_TECHNICAL.md Section 7** vs **XORG_XR_IMPLEMENTATION_STATUS.md**:
+   - **Overlap**: Both list implementation status
+   - **Resolution**: BREEZY_X11_TECHNICAL should have high-level status, XORG_XR_IMPLEMENTATION_STATUS has detailed task tracking
+   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references XORG_XR_IMPLEMENTATION_STATUS
+
+3. **BREEZY_X11_TECHNICAL.md** vs **xfce4/renderer/IMPLEMENTATION_STATUS.md**:
+   - **Overlap**: Minimal - different scopes (Xorg driver vs renderer)
+   - **Resolution**: Keep separate (renderer-specific vs driver-specific)
+
+## Recommended Structure
+
+```
+BREEZY_X11_TECHNICAL.md (Main Document)
+├── High-level overview of all components
+├── References to detailed docs for:
+│   ├── XFCE4/Xorg virtual connector design → doc_xfce4_xorg_xr_connector_design.md
+│   ├── Implementation status → XORG_XR_IMPLEMENTATION_STATUS.md
+│   └── Renderer details → xfce4/renderer/IMPLEMENTATION_STATUS.md
+└── Language choice rationale (Python vs C)
+
+doc_xfce4_xorg_xr_connector_design.md (Detailed Design)
+├── API design details
+├── Data structures
+├── Code examples
+└── Communication interface specs
+
+XORG_XR_IMPLEMENTATION_STATUS.md (Status Tracking)
+├── Completed items
+├── Remaining tasks
+└── Testing requirements
+```
+
+## Language Choice: Python vs C
+
+### Current Architecture
+
+**Performance-Critical Components (C/C++)**:
+- **3D Renderer** (`xfce4/renderer/breezy_xfce4_renderer.c`): C-based for maximum performance
+- **KWin Effect** (`kwin/src/breezydesktopeffect.cpp`): C++ for compositor integration
+
+**Orchestration/IPC Components (Python/JavaScript)**:
+- **XFCE4 Backend** (`xfce4/src/xfce4_backend.py`): Python for xrandr orchestration
+- **KWin IPC** (`kwin/src/xrdriveripc/xrdriveripc.py`): Python for XRLinuxDriver IPC
+- **GNOME Extension** (`gnome/src/extension.js`): JavaScript (required by GNOME)
+
+### Rationale
+
+**Python is appropriate for**:
+- **xrandr orchestration**:** Simple subprocess calls, no performance impact
+- **IPC with XRLinuxDriver**: JSON parsing, shared memory access - not performance-critical
+- **State management**: Configuration, calibration detection - not in hot path
+- **Rapid development**: Easier to iterate on backend logic
+
+**C/C++ is required for**:
+- **3D rendering**: OpenGL calls, shader execution, frame processing - performance-critical
+- **Compositor integration**: Must match compositor's language (C++ for KWin, JavaScript for GNOME)
+
+**Conclusion**: The current mixed-language approach is optimal:
+- Backend orchestration in Python (matches KWin's pattern)
+- Performance-critical rendering in C (matches industry standard)
+- This separation of concerns is common in graphics applications
+
