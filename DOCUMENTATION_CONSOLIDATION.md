@@ -6,8 +6,8 @@
 - **`BREEZY_X11_TECHNICAL.md`**: Main technical documentation (should be the primary reference)
 
 ### Detailed Design Documents (Referenced from Main)
-- **`doc_xfce4_xorg_xr_connector_design.md`**: Detailed API design, data structures, code examples
-- **`XORG_XR_IMPLEMENTATION_STATUS.md`**: Implementation status tracking and remaining tasks
+- **`XORG_VIRTUAL_XR_API.md`**: Detailed API design, data structures, code examples
+- **`XORG_IMPLEMENTATION_STATUS.md`**: Implementation status tracking and remaining tasks
 
 ### Implementation-Specific Docs (Keep Separate)
 - **`xfce4/renderer/IMPLEMENTATION_STATUS.md`**: Renderer implementation status
@@ -19,15 +19,15 @@
 
 ### Overlap Between Documents
 
-1. **BREEZY_X11_TECHNICAL.md Section 7.2** vs **doc_xfce4_xorg_xr_connector_design.md**:
+1. **BREEZY_X11_TECHNICAL.md Section 7.2** vs **XORG_VIRTUAL_XR_API.md**:
    - **Overlap**: Both describe virtual XR outputs architecture
-   - **Resolution**: BREEZY_X11_TECHNICAL should provide high-level overview, reference doc_xfce4 for details
-   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references doc_xfce4 for detailed design
+   - **Resolution**: BREEZY_X11_TECHNICAL should provide high-level overview, reference XORG_VIRTUAL_XR_API for details
+   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references XORG_VIRTUAL_XR_API for detailed design
 
-2. **BREEZY_X11_TECHNICAL.md Section 7** vs **XORG_XR_IMPLEMENTATION_STATUS.md**:
+2. **BREEZY_X11_TECHNICAL.md Section 7** vs **XORG_IMPLEMENTATION_STATUS.md**:
    - **Overlap**: Both list implementation status
-   - **Resolution**: BREEZY_X11_TECHNICAL should have high-level status, XORG_XR_IMPLEMENTATION_STATUS has detailed task tracking
-   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references XORG_XR_IMPLEMENTATION_STATUS
+   - **Resolution**: BREEZY_X11_TECHNICAL should have high-level status, XORG_IMPLEMENTATION_STATUS has detailed task tracking
+   - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references XORG_IMPLEMENTATION_STATUS
 
 3. **BREEZY_X11_TECHNICAL.md** vs **xfce4/renderer/IMPLEMENTATION_STATUS.md**:
    - **Overlap**: Minimal - different scopes (Xorg driver vs renderer)
@@ -39,18 +39,18 @@
 BREEZY_X11_TECHNICAL.md (Main Document)
 ├── High-level overview of all components
 ├── References to detailed docs for:
-│   ├── XFCE4/Xorg virtual connector design → doc_xfce4_xorg_xr_connector_design.md
-│   ├── Implementation status → XORG_XR_IMPLEMENTATION_STATUS.md
+│   ├── XFCE4/Xorg virtual connector design → XORG_VIRTUAL_XR_API.md
+│   ├── Implementation status → XORG_IMPLEMENTATION_STATUS.md
 │   └── Renderer details → xfce4/renderer/IMPLEMENTATION_STATUS.md
 └── Language choice rationale (Python vs C)
 
-doc_xfce4_xorg_xr_connector_design.md (Detailed Design)
+XORG_VIRTUAL_XR_API.md (Detailed Design)
 ├── API design details
 ├── Data structures
 ├── Code examples
 └── Communication interface specs
 
-XORG_XR_IMPLEMENTATION_STATUS.md (Status Tracking)
+XORG_IMPLEMENTATION_STATUS.md (Status Tracking)
 ├── Completed items
 ├── Remaining tasks
 └── Testing requirements

@@ -733,11 +733,9 @@ Users would disable SBS mode for:
 
 ---
 
-## 7. Roadmap: XFCE4 Support (Priority) and Future Virtual XR Outputs
+## 7. XFCE4 Support via Virtual XR Outputs in Xorg
 
-**Current Status**: Breezy Desktop works on X11 under GNOME. This roadmap focuses on:
-1. **XFCE4 Support (Priority)**: Getting Breezy Desktop working on XFCE4
-2. **Future Enhancement**: Virtual XR outputs in Xorg (can be deferred since GNOME works without them)
+**Current Status**: Breezy Desktop works on X11 under GNOME. XFCE4 support requires virtual XR outputs in Xorg (implementation in progress).
 
 ### 7.1 XFCE4 Support Roadmap (Immediate Priority)
 
@@ -807,8 +805,8 @@ For maximum FPS and best user experience, the XFCE4 renderer is implemented in *
 ### 7.2 Virtual XR Outputs in Xorg (XFCE4 Implementation)
 
 **Note**: This section describes the virtual XR outputs implementation in the Xorg modesetting driver. This is **required for XFCE4 support** (not optional), as XFCE4 lacks compositor APIs like Mutter/KWin. For detailed API design and implementation status, see:
-- `doc_xfce4_xorg_xr_connector_design.md` - Detailed API design, data structures, and communication interface
-- `XORG_XR_IMPLEMENTATION_STATUS.md` - Current implementation status and remaining tasks
+- `XORG_VIRTUAL_XR_API.md` - Detailed API design, data structures, and communication interface
+- `XORG_IMPLEMENTATION_STATUS.md` - Current implementation status and remaining tasks
 
 Virtual XR outputs provide:
 - Arbitrary resolution support (not limited to physical display resolution)
@@ -820,11 +818,11 @@ Virtual XR outputs provide:
 
 1. **Fixed Resolution**: The physical XR display has a fixed resolution (e.g., 1920x1080 or 3840x2160) that cannot be changed
 2. **Cursor Duplication**: Two mouse cursors may be visible - one from the system and one from Breezy's 3D rendering
-3. **No Virtual Display Support**: Cannot create virtual displays of arbitrary resolutions for AR experiences (this is a future enhancement)
+3. **No Virtual Display Support**: Cannot create virtual displays of arbitrary resolutions for AR experiences
 
-#### Solution: Virtual XR Outputs in Xorg (Future)
+#### Solution: Virtual XR Outputs in Xorg
 
-We plan to implement **virtual XR outputs** directly in the Xorg modesetting driver. This will enable Breezy Desktop to:
+**Virtual XR outputs** are implemented in the Xorg modesetting driver. This enables Breezy Desktop to:
 
 1. **Create displays of any resolution**: Virtual outputs (XR-0, XR-1, etc.) can be created with arbitrary width, height, and refresh rate
 2. **Replace the physical XR display**: Instead of rendering to the fixed-resolution physical XR glasses display, Breezy can render to virtual outputs that are then composited and sent to the physical display
@@ -832,9 +830,7 @@ We plan to implement **virtual XR outputs** directly in the Xorg modesetting dri
 
 ### Technical Implementation
 
-#### Architecture Overview (Future Enhancement)
-
-*Note: This architecture diagram shows the future virtual XR outputs approach. For initial XFCE4 support, we'll work with the physical XR display directly.*
+#### Architecture Overview
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -889,22 +885,19 @@ We plan to implement **virtual XR outputs** directly in the Xorg modesetting dri
 
 #### Implementation Details
 
-**1. Virtual Output Creation** (Future Enhancement)
+**1. Virtual Output Creation**
 
-Virtual XR outputs would be created in the modesetting driver (`drmmode_xr_virtual.c`):
+Virtual XR outputs are created in the modesetting driver (`drmmode_xr_virtual.c`) via the XR-Manager control output:
 
-```c
-// Virtual outputs are created dynamically via RandR properties
-// XR-Manager output (XR-Manager) is used for control
-// Virtual outputs (XR-0, XR-1, ...) are created on demand
+- **XR-Manager**: Control output that manages virtual XR outputs (always present, non-desktop, disconnected)
+- **Virtual Outputs (XR-0, XR-1, etc.)**: Created dynamically via `CREATE_XR_OUTPUT` property on XR-Manager
+- **AR Mode**: Toggled via `AR_MODE` property on XR-Manager (hides physical XR, shows virtual XR)
 
-drmmode_xr_create_virtual_output(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
-                                 const char *name, int width, int height, int refresh)
-```
+For detailed API design and data structures, see `XORG_VIRTUAL_XR_API.md`.
 
-**2. RandR Integration** (Future Enhancement)
+**2. RandR Integration**
 
-Virtual outputs would be exposed through RandR:
+Virtual outputs are exposed through RandR:
 - They appear in `xrandr --listoutputs` as `XR-0`, `XR-1`, etc.
 - They are visible in Display Settings GUI (XFCE4, GNOME)
 - They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
@@ -932,9 +925,9 @@ Once CRTCs are assigned, virtual outputs would enable:
 **5. Cursor Duplication Fix** (Future Enhancement)
 
 By rendering to virtual outputs instead of the physical XR display:
-- The system cursor could be hidden on virtual outputs (X11 cursor hiding works for software outputs)
-- Only Breezy's 3D-rendered cursor would be visible
-- The physical XR display would receive the composited output (including the 3D cursor)
+- The system cursor can be hidden on virtual outputs (X11 cursor hiding works for software outputs)
+- Only Breezy's 3D-rendered cursor is visible
+- The physical XR display receives the composited output (including the 3D cursor)
 
 ### Current Status
 
@@ -944,30 +937,30 @@ By rendering to virtual outputs instead of the physical XR display:
 - DisplayConfig D-Bus interface support
 - IMU integration via XRLinuxDriver
 
-**✅ Completed (Xorg Infrastructure - Future Use)**:
-- Virtual XR output creation infrastructure in modesetting driver
+**✅ Completed (Xorg Virtual XR Infrastructure)**:
+- XR-Manager control output creation and RandR integration
+- Virtual XR output creation infrastructure (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT)
+- Virtual CRTC creation for virtual outputs (software-based CRTCs)
+- Off-screen framebuffer/pixmap creation (GBM and dumb buffer support)
+- AR mode logic (hide/show physical XR connector via AR_MODE property)
+- Physical XR display detection via EDID and `non_desktop` marking
 - RandR integration (outputs appear in `xrandr` and Display Settings)
-- Dynamic output creation/resize/delete via RandR properties
-- XR-Manager control output for managing virtual outputs
-- `non_desktop` property preservation in RandR
 
-**🚧 In Progress (XFCE4 Priority - Requires Virtual Outputs)**:
-- **Virtual CRTC creation for virtual outputs** (software-based CRTCs - **prerequisite for XFCE4**, not optional)
-- **Physical XR display detection and hiding via EDID** (mark as `non_desktop` to hide from Display Settings - **prerequisite**)
-- **XFCE4 backend implementation** for Breezy Desktop
-- **3D renderer for XFCE4** (reading from virtual output framebuffers, applying 3D transformations, rendering to physical XR display)
-- **RandR integration** for XFCE4 (virtual output creation/management, physical display hiding)
-- **IMU integration** for XFCE4
-- **Cursor management** (hiding system cursor on virtual outputs, rendering 3D cursor)
+**🚧 In Progress (XFCE4)**:
+- Mode handling for virtual outputs (dynamic resolution changes via XR_WIDTH, XR_HEIGHT, XR_REFRESH)
+- DRM framebuffer export for zero-copy capture (DMA-BUF)
+- XFCE4 backend integration (calibration detection, XR-0 creation, AR mode enablement)
+- Integration testing
 
 **📋 Planned (Future Enhancements)**:
-- Multiple virtual displays support (XR-0, XR-1, etc.)
-- Dynamic resolution switching via virtual outputs
+- Multiple virtual displays support (XR-1, XR-2, etc.)
 - Performance optimization
 
-### Benefits of Virtual XR Outputs (Future Enhancement)
+**Note**: For detailed implementation status and remaining tasks, see `XORG_IMPLEMENTATION_STATUS.md`.
 
-Once virtual XR outputs are implemented, they will provide:
+### Benefits of Virtual XR Outputs
+
+Virtual XR outputs provide:
 
 1. **Resolution Independence**: Breezy Desktop can create virtual displays of any resolution, not limited by the physical XR glasses hardware
 2. **Multiple Virtual Displays**: Support for multiple virtual outputs (XR-0, XR-1, etc.) for multi-monitor setups
@@ -975,7 +968,7 @@ Once virtual XR outputs are implemented, they will provide:
 4. **Better Integration**: Virtual outputs appear in standard Display Settings tools, making them easier to configure
 5. **Wayland Parity**: Brings X11 functionality closer to the Wayland implementation's virtual display capabilities
 
-*Note: These benefits apply to virtual XR outputs, which are a prerequisite for XFCE4 support. Unlike GNOME which uses Mutter's overlay approach, XFCE4 requires virtual outputs to avoid double rendering.*
+*Note: These benefits are realized in the current implementation. Unlike GNOME which uses Mutter's overlay approach, XFCE4 requires virtual outputs to avoid double rendering.*
 
 ### XFCE4 Implementation Path
 
@@ -1020,7 +1013,8 @@ Once virtual XR outputs are implemented, they will provide:
 
 - **Extension Source**: `breezy-desktop/gnome/src/`
 - **XR Driver**: `XRLinuxDriver/`
-- **X11 Virtual Connector Design**: `breezy-desktop/doc_xfce4_xorg_xr_connector_design.md`
+- **Xorg Virtual XR API Design**: `breezy-desktop/XORG_VIRTUAL_XR_API.md`
+- **Xorg Implementation Status**: `breezy-desktop/XORG_IMPLEMENTATION_STATUS.md`
 - **Mutter DisplayConfig**: `breezy-desktop/gnome/src/dbus-interfaces/org.gnome.Mutter.DisplayConfig.xml`
 - **Shader Code**: `breezy-desktop/modules/sombrero/Sombrero.frag`
 - **Xorg Virtual XR Implementation**: `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`
