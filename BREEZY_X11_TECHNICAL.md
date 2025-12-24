@@ -754,20 +754,55 @@ XFCE4 differs from GNOME in several key ways:
    - Applies 3D transformations (IMU-based head tracking, FOV calculations, display distance)
    - Renders the transformed content to the physical XR display
 
+#### XFCE4 Implementation Architecture
+
+**High-Performance C-Based Renderer**:
+
+For maximum FPS and best user experience, the XFCE4 renderer is implemented in **C with OpenGL**, not Python. This avoids:
+- Python GIL (Global Interpreter Lock) overhead
+- Python runtime overhead
+- Memory allocation inefficiencies
+
+**Architecture**:
+1. **Capture Thread**: Reads from virtual XR connector via DRM/KMS directly (no X11 screen capture like `XShmGetImage` or `XGetImage`)
+2. **Render Thread**: Applies GLSL shaders (ported from `Sombrero.frag`) and renders to AR glasses display at exact refresh rate (vsync)
+3. **Lock-free Ring Buffer**: Triple-buffered frame transfer between threads for zero-copy, low-latency frame passing
+4. **Direct OpenGL Rendering**: No Qt/abstractions - raw OpenGL for minimum overhead
+
+**Workflow**:
+1. Glasses connect → XRLinuxDriver detects device
+2. Initial calibration period (15 seconds for XREAL devices)
+3. Physical VR display marked as `non_desktop` via EDID (hidden from Display Settings)
+4. Virtual XR connector (XR-0) appears in same screen location
+5. XFCE compositor renders to virtual XR connector (off-screen buffer)
+6. Breezy renderer captures from virtual buffer via DRM/KMS
+7. Renderer applies 3D transformations (IMU head tracking) via GLSL shaders
+8. Renderer outputs directly to physical AR glasses display
+
+**Key Performance Optimizations**:
+- Lock-free ring buffer (atomic operations, memory barriers)
+- Direct DRM/KMS access (bypasses X11 overhead)
+- Separate capture/render threads (capture can be slower than render, render matches refresh rate exactly)
+- No intermediate buffers where possible
+- Direct OpenGL context on AR glasses display
+
 #### XFCE4 Implementation Tasks
 
 **🚧 Immediate Priority**:
-- [ ] XFCE4 backend implementation for Breezy Desktop
-- [ ] 3D renderer integration for XFCE4 (reading desktop framebuffer, applying 3D transformations, rendering to XR display)
-- [ ] RandR integration for XFCE4 (detecting XR displays, managing display configuration)
-- [ ] IMU integration (head tracking via XRLinuxDriver)
-- [ ] Cursor management (hiding system cursor, rendering 3D cursor)
+- [x] C-based 3D renderer skeleton (replacing Python implementation)
+- [ ] DRM/KMS capture from virtual XR connector (no X11 screen capture)
+- [ ] GLSL shader port from `Sombrero.frag` 
+- [ ] IMU data reader from `/dev/shm/breezy_desktop_imu`
+- [ ] OpenGL context creation on AR glasses display
+- [ ] Virtual XR connector implementation in Xorg modesetting driver
+- [ ] Physical XR display `non_desktop` marking via EDID
+- [ ] XFCE4 backend integration with Breezy Desktop UI
 - [ ] Testing and validation on XFCE4
 
-**📋 Future Enhancements** (can be done after XFCE4 works):
-- Virtual XR outputs in Xorg (for resolution flexibility)
-- Multiple virtual displays support
+**📋 Future Enhancements**:
+- Multiple virtual displays support (XR-0, XR-1, etc.)
 - Dynamic resolution switching
+- Curved display support
 
 ### 7.2 Future Enhancement: Virtual XR Outputs in Xorg
 
