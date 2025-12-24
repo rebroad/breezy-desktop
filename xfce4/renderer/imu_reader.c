@@ -136,9 +136,10 @@ IMUData read_latest_imu(IMUReader *reader) {
     memcpy(&epoch_high, &data[OFFSET_EPOCH_MS + 4], sizeof(uint32_t));
     result.timestamp_ms = ((uint64_t)epoch_high << 32) | epoch_low;
     
-    // Read pose orientation (16 floats = 4x4 matrix, but we only need the quaternion from first column)
-    // The pose_orientation is stored as a 4x4 matrix, with quaternion in first 4 floats
-    memcpy(result.quaternion, &data[OFFSET_POSE_ORIENTATION], sizeof(float) * 4);
+    // Read pose orientation (16 floats = 4x4 matrix)
+    // Row 0-2: quaternions at t0, t1, t2 (each 4 floats: x, y, z, w)
+    // Row 3: timestamps (4 floats: timestamp_t0, timestamp_t1, timestamp_t2, unused)
+    memcpy(result.pose_orientation, &data[OFFSET_POSE_ORIENTATION], sizeof(float) * 16);
     
     result.valid = true;
     
@@ -147,5 +148,63 @@ IMUData read_latest_imu(IMUReader *reader) {
     
     pthread_mutex_unlock(&reader->lock);
     return result;
+}
+
+// Read device configuration from shared memory
+DeviceConfig read_device_config(IMUReader *reader) {
+    DeviceConfig config = {0};
+    config.valid = false;
+    
+    if (!reader->shm_ptr || reader->shm_fd < 0) {
+        return config;
+    }
+    
+    pthread_mutex_lock(&reader->lock);
+    
+    const uint8_t *data = (const uint8_t *)reader->shm_ptr;
+    
+    // Check if enabled
+    bool enabled = data[OFFSET_ENABLED] != 0;
+    if (!enabled) {
+        pthread_mutex_unlock(&reader->lock);
+        return config;
+    }
+    
+    // Verify parity
+    uint8_t expected_parity = calculate_parity(data);
+    uint8_t actual_parity = data[OFFSET_IMU_PARITY_BYTE];
+    if (expected_parity != actual_parity) {
+        pthread_mutex_unlock(&reader->lock);
+        return config;
+    }
+    
+    // Read look ahead config (4 floats)
+    memcpy(config.look_ahead_cfg, &data[OFFSET_LOOK_AHEAD_CFG], sizeof(float) * 4);
+    
+    // Read display resolution (2 uints)
+    memcpy(config.display_resolution, &data[OFFSET_DISPLAY_RES], sizeof(uint32_t) * 2);
+    
+    // Read display FOV (1 float)
+    memcpy(&config.display_fov, &data[OFFSET_DISPLAY_FOV], sizeof(float));
+    
+    // Read lens distance ratio (1 float)
+    memcpy(&config.lens_distance_ratio, &data[OFFSET_LENS_DISTANCE_RATIO], sizeof(float));
+    
+    // Read SBS enabled (1 bool)
+    config.sbs_enabled = data[OFFSET_SBS_ENABLED] != 0;
+    
+    // Read custom banner enabled (1 bool)
+    config.custom_banner_enabled = data[OFFSET_CUSTOM_BANNER_ENABLED] != 0;
+    
+    // Read smooth follow enabled (1 bool)
+    config.smooth_follow_enabled = data[OFFSET_SMOOTH_FOLLOW_ENABLED] != 0;
+    
+    // Read smooth follow origin (16 floats = 4x4 matrix)
+    memcpy(config.smooth_follow_origin, &data[OFFSET_SMOOTH_FOLLOW_ORIGIN_DATA], sizeof(float) * 16);
+    
+    config.valid = true;
+    
+    pthread_mutex_unlock(&reader->lock);
+    return config;
 }
 

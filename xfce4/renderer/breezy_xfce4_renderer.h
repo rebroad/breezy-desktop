@@ -14,6 +14,7 @@ typedef struct RenderThread RenderThread;
 typedef struct FrameBuffer FrameBuffer;
 typedef struct IMUReader IMUReader;
 typedef struct IMUData IMUData;
+typedef struct DeviceConfig DeviceConfig;
 
 // Structure to pass DMA-BUF info from capture to render thread
 typedef struct {
@@ -35,6 +36,7 @@ void cleanup_drm_capture(CaptureThread *thread);
 int init_imu_reader(IMUReader *reader);
 void cleanup_imu_reader(IMUReader *reader);
 IMUData read_latest_imu(IMUReader *reader);
+DeviceConfig read_device_config(IMUReader *reader);
 
 // Shader loading functions (in shader_loader.c)
 int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path);

@@ -67,9 +67,22 @@ struct FrameBuffer {
 };
 
 // IMU data structure
+// Device configuration from shared memory
 typedef struct {
-    float quaternion[4];  // w, x, y, z
-    float position[3];    // x, y, z
+    float look_ahead_cfg[4];
+    uint32_t display_resolution[2];
+    float display_fov;
+    float lens_distance_ratio;
+    bool sbs_enabled;
+    bool custom_banner_enabled;
+    bool smooth_follow_enabled;
+    float smooth_follow_origin[16];  // 4x4 matrix
+    bool valid;
+} DeviceConfig;
+
+typedef struct {
+    float pose_orientation[16];  // 4x4 matrix: rows 0-2 are quaternions (t0, t1, t2), row 3 is timestamps
+    float position[3];            // x, y, z
     uint64_t timestamp_ms;
     bool valid;
 } IMUData;
@@ -176,7 +189,7 @@ static void *render_thread_func(void *arg);
 static int init_render_thread(RenderThread *thread, Renderer *renderer);
 static void cleanup_render_thread(RenderThread *thread);
 static int load_shaders(RenderThread *thread);
-static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu);
+static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu, DeviceConfig *config);
 
 static int init_frame_buffer(FrameBuffer *fb, uint32_t width, uint32_t height);
 static void cleanup_frame_buffer(FrameBuffer *fb);
@@ -570,7 +583,181 @@ static int load_shaders(RenderThread *thread) {
     return load_sombrero_shaders(thread, frag_path);
 }
 
-static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {
+// Helper function to set shader uniforms
+static void set_shader_uniforms(RenderThread *thread, IMUData *imu, DeviceConfig *config, uint32_t width, uint32_t height) {
+    if (!thread->shader_program || !imu->valid || !config->valid) {
+        return;
+    }
+    
+    // Calculate look_ahead_ms: data age + constant (or use override if provided)
+    uint64_t current_time_ms = 0;
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+        current_time_ms = (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+    }
+    uint64_t data_age_ms = (current_time_ms > imu->timestamp_ms) ? (current_time_ms - imu->timestamp_ms) : 0;
+    float look_ahead_ms = config->look_ahead_cfg[0] + (float)data_age_ms;
+    
+    // Calculate frametime (inverse of refresh rate)
+    float frametime = 1000.0f / (float)thread->refresh_rate;
+    
+    // Calculate FOV values from display_fov
+    float display_aspect_ratio = (float)config->display_resolution[0] / (float)config->display_resolution[1];
+    float diag_to_vert_ratio = sqrtf(display_aspect_ratio * display_aspect_ratio + 1.0f);
+    float half_fov_z_rads = (config->display_fov * M_PI / 180.0f) / diag_to_vert_ratio / 2.0f;
+    float half_fov_y_rads = half_fov_z_rads * display_aspect_ratio;
+    float fov_half_widths[2] = {tanf(half_fov_y_rads), tanf(half_fov_z_rads)};
+    float fov_widths[2] = {fov_half_widths[0] * 2.0f, fov_half_widths[1] * 2.0f};
+    
+    // Calculate source_to_display_ratio
+    float source_to_display_ratio[2] = {
+        (float)width / (float)config->display_resolution[0],
+        (float)height / (float)config->display_resolution[1]
+    };
+    
+    // Set uniforms
+    GLint loc;
+    
+    // Basic uniforms
+    if ((loc = glGetUniformLocation(thread->shader_program, "virtual_display_enabled")) >= 0) {
+        glUniform1i(loc, 1);  // Always enabled in renderer
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "pose_orientation")) >= 0) {
+        glUniformMatrix4fv(loc, 1, GL_FALSE, imu->pose_orientation);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "pose_position")) >= 0) {
+        glUniform3fv(loc, 1, imu->position);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "look_ahead_cfg")) >= 0) {
+        glUniform4fv(loc, 1, config->look_ahead_cfg);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "display_resolution")) >= 0) {
+        glUniform2f(loc, (float)config->display_resolution[0], (float)config->display_resolution[1]);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "source_to_display_ratio")) >= 0) {
+        glUniform2fv(loc, 1, source_to_display_ratio);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "display_size")) >= 0) {
+        glUniform1f(loc, 1.0f);  // Full screen
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "display_north_offset")) >= 0) {
+        glUniform1f(loc, 1.0f);  // Default distance
+    }
+    
+    // Lens vectors (from lens_distance_ratio)
+    float lens_vector[3] = {config->lens_distance_ratio, 0.0f, 0.0f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "lens_vector")) >= 0) {
+        glUniform3fv(loc, 1, lens_vector);
+    }
+    if ((loc = glGetUniformLocation(thread->shader_program, "lens_vector_r")) >= 0) {
+        glUniform3fv(loc, 1, lens_vector);  // Same for both eyes initially
+    }
+    
+    // Texture coordinate limits (full screen)
+    float texcoord_x_limits[2] = {0.0f, 1.0f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "texcoord_x_limits")) >= 0) {
+        glUniform2fv(loc, 1, texcoord_x_limits);
+    }
+    if ((loc = glGetUniformLocation(thread->shader_program, "texcoord_x_limits_r")) >= 0) {
+        glUniform2fv(loc, 1, texcoord_x_limits);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "show_banner")) >= 0) {
+        glUniform1i(loc, 0);  // No banner by default
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "frametime")) >= 0) {
+        glUniform1f(loc, frametime);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "look_ahead_ms")) >= 0) {
+        glUniform1f(loc, look_ahead_ms);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "custom_banner_enabled")) >= 0) {
+        glUniform1i(loc, config->custom_banner_enabled ? 1 : 0);
+    }
+    
+    float trim_percent[2] = {0.0f, 0.0f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "trim_percent")) >= 0) {
+        glUniform2fv(loc, 1, trim_percent);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "curved_display")) >= 0) {
+        glUniform1i(loc, 0);  // Flat display by default
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "sbs_enabled")) >= 0) {
+        glUniform1i(loc, config->sbs_enabled ? 1 : 0);
+    }
+    
+    // FOV uniforms
+    if ((loc = glGetUniformLocation(thread->shader_program, "half_fov_z_rads")) >= 0) {
+        glUniform1f(loc, half_fov_z_rads);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "half_fov_y_rads")) >= 0) {
+        glUniform1f(loc, half_fov_y_rads);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "fov_half_widths")) >= 0) {
+        glUniform2fv(loc, 1, fov_half_widths);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "fov_widths")) >= 0) {
+        glUniform2fv(loc, 1, fov_widths);
+    }
+    
+    // Sideview uniforms
+    if ((loc = glGetUniformLocation(thread->shader_program, "sideview_enabled")) >= 0) {
+        glUniform1i(loc, 0);  // Disabled by default
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "sideview_position")) >= 0) {
+        glUniform1f(loc, 0.0f);
+    }
+    
+    // Other uniforms
+    float banner_position[2] = {0.5f, 0.9f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "banner_position")) >= 0) {
+        glUniform2fv(loc, 1, banner_position);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "day_in_seconds")) >= 0) {
+        glUniform1f(loc, 24.0f * 60.0f * 60.0f);
+    }
+    
+    // Date and keepalive (simplified - could be enhanced)
+    float date[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "date")) >= 0) {
+        glUniform4fv(loc, 1, date);
+    }
+    if ((loc = glGetUniformLocation(thread->shader_program, "keepalive_date")) >= 0) {
+        glUniform4fv(loc, 1, date);
+    }
+    
+    float imu_reset_data[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    if ((loc = glGetUniformLocation(thread->shader_program, "imu_reset_data")) >= 0) {
+        glUniform4fv(loc, 1, imu_reset_data);
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "look_ahead_ms_cap")) >= 0) {
+        glUniform1f(loc, 45.0f);  // Default cap
+    }
+    
+    if ((loc = glGetUniformLocation(thread->shader_program, "sbs_mode_stretched")) >= 0) {
+        glUniform1i(loc, 0);  // Not stretched by default
+    }
+}
+
+static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu, DeviceConfig *config) {
     if (!thread->shader_program || !thread->vao) {
         return;
     }
@@ -633,8 +820,9 @@ static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {
     glBindVertexArray(thread->vao);
     
     // Set shader uniforms
-    // TODO: Set all Sombrero.frag uniforms based on IMU data and settings
-    // For now, just set the screen texture
+    set_shader_uniforms(thread, imu, config, width, height);
+    
+    // Set screen texture
     GLint screen_tex_loc = glGetUniformLocation(thread->shader_program, "screenTexture");
     if (screen_tex_loc >= 0) {
         glActiveTexture(GL_TEXTURE0);
