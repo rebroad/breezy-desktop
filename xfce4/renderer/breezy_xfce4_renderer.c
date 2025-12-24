@@ -24,12 +24,19 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <EGL/egl.h>
+
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include <drm/drm_fourcc.h>
+
+#include "breezy_xfce4_renderer.h"
 
 // Forward declarations
 typedef struct Renderer Renderer;
@@ -85,11 +92,14 @@ struct CaptureThread {
     uint32_t height;
     uint32_t framerate;
     
-    // DRM/KMS capture (to be implemented)
-    // Note: Will use libdrm for DRM/KMS access
+    // DRM/KMS capture
     int drm_fd;  // -1 if not initialized
     uint32_t connector_id;
     uint32_t crtc_id;
+    uint32_t fb_id;  // Current framebuffer ID
+    drmModeFBPtr fb_info;  // Current framebuffer info
+    void *fb_map;  // Mapped framebuffer memory
+    size_t fb_size;  // Framebuffer size in bytes
 };
 
 // Render thread
@@ -277,23 +287,25 @@ static void *capture_thread_func(void *arg) {
     struct timespec next_frame_time;
     clock_gettime(CLOCK_MONOTONIC, &next_frame_time);
     
+    // Allocate capture buffer
+    size_t frame_size = thread->width * thread->height * 4;
+    uint8_t *capture_buffer = malloc(frame_size);
+    if (!capture_buffer) {
+        fprintf(stderr, "[Capture] Failed to allocate capture buffer\n");
+        return NULL;
+    }
+    
     while (!thread->stop_requested) {
-        // TODO: Capture from virtual XR connector via DRM/KMS
-        // This should read directly from the off-screen buffer without X11
-        // See doc_xfce4_xorg_xr_connector_design.md for architecture
-        
-        // For now, placeholder
-        uint8_t *dummy_frame = malloc(thread->width * thread->height * 4);
-        if (dummy_frame) {
-            memset(dummy_frame, 0, thread->width * thread->height * 4);
-            
+        // Capture from virtual XR connector via DRM/KMS
+        if (capture_drm_frame(thread, capture_buffer, thread->width, thread->height) == 0) {
             // Write to ring buffer
             write_frame(&thread->renderer->frame_buffer,
-                       dummy_frame,
+                       capture_buffer,
                        thread->width,
                        thread->height);
-            
-            free(dummy_frame);
+        } else {
+            // Capture failed, wait a bit
+            usleep(10000);  // 10ms
         }
         
         // Sleep until next frame
@@ -320,6 +332,7 @@ static void *capture_thread_func(void *arg) {
         }
     }
     
+    free(capture_buffer);
     printf("[Capture] Thread stopping\n");
     return NULL;
 }
@@ -330,11 +343,13 @@ static int init_capture_thread(CaptureThread *thread, Renderer *renderer) {
     thread->running = false;
     thread->stop_requested = false;
     thread->drm_fd = -1;
+    thread->connector_name = "XR-0";  // Default virtual connector name
     
-    // TODO: Open DRM device and find virtual XR connector
-    // thread->drm_fd = open("/dev/dri/card0", O_RDWR);
-    // Find connector by name "XR-0"
-    // Will use libdrm API: drmModeGetResources, drmModeGetConnector, etc.
+    // Initialize DRM capture
+    if (init_drm_capture(thread) < 0) {
+        fprintf(stderr, "[Capture] Failed to initialize DRM capture\n");
+        return -1;
+    }
     
     return 0;
 }
@@ -344,9 +359,7 @@ static void cleanup_capture_thread(CaptureThread *thread) {
     if (thread->running) {
         pthread_join(thread->thread, NULL);
     }
-    if (thread->drm_fd >= 0) {
-        close(thread->drm_fd);
-    }
+    cleanup_drm_capture(thread);
 }
 
 // Render Thread Implementation
