@@ -85,7 +85,7 @@ This will:
 
 For detailed technical information about the virtual XR outputs implementation, see:
 - [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) - Complete technical documentation
-- [`../doc_xfce4_xorg_xr_connector_design.md`](../doc_xfce4_xorg_xr_connector_design.md) - Original design document
+- [`../XORG_VIRTUAL_XR_API.md`](../XORG_VIRTUAL_XR_API.md) - Xorg virtual XR connector API design
 
 ## Future Improvements
 

@@ -76,7 +76,7 @@ Based on code review of `drmmode_xr_virtual.c`:
 - Mode lists for virtual outputs (fixed set of common resolutions: 1920x1080, 2560x1440, 3840x2160, etc.)
 - Mode setting callbacks that update framebuffer size when mode changes
 
-**Reference:** `doc_xfce4_xorg_xr_connector_design.md` lines 125-129
+**Reference:** `XORG_VIRTUAL_XR_API.md` lines 125-129
 
 #### 6. **DRM Framebuffer Export** (Required for Zero-Copy)
 
@@ -96,7 +96,7 @@ Based on code review of `drmmode_xr_virtual.c`:
 - Ensure virtual outputs appear in `xrandr --listoutputs`
 - Integrate with existing CRTC/connector enumeration code
 
-**Reference:** `doc_xfce4_xorg_xr_connector_design.md` lines 86-122 shows pseudo-code for initialization
+**Reference:** `XORG_VIRTUAL_XR_API.md` lines 86-122 shows pseudo-code for initialization
 
 ## Implementation Order (Recommended)
 
@@ -122,7 +122,7 @@ After implementation, verify:
 
 - **Implementation:** `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`
 - **Design Docs:**
-  - `breezy-desktop/doc_xfce4_xorg_xr_connector_design.md`
+  - `breezy-desktop/XORG_VIRTUAL_XR_API.md`
   - `breezy-desktop/BREEZY_X11_TECHNICAL.md` (section 7.2)
   - `breezy-desktop/xfce4_ar_support_via_xorg_virtual_xr_connector.plan.md`
 - **Renderer Code:** `breezy-desktop/xfce4/renderer/` (expects virtual connector to be available)
