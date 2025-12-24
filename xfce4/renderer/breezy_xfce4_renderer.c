@@ -196,7 +196,7 @@ static int init_frame_buffer(FrameBuffer *fb, uint32_t width, uint32_t height) {
     for (int i = 0; i < RING_BUFFER_SIZE; i++) {
         fb->frames[i] = malloc(frame_size);
         if (!fb->frames[i]) {
-            fprintf(stderr, "Failed to allocate frame buffer %d\n", i);
+            log_error("Failed to allocate frame buffer %d\n", i);
             for (int j = 0; j < i; j++) {
                 free(fb->frames[j]);
             }
