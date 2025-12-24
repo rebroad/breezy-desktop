@@ -170,38 +170,6 @@ static void cleanup_frame_buffer(FrameBuffer *fb);
 static bool write_frame(FrameBuffer *fb, const uint8_t *data, uint32_t width, uint32_t height);
 static bool read_latest_frame(FrameBuffer *fb, uint8_t **data, struct timespec *timestamp);
 
-// IMU Reader Implementation
-static int init_imu_reader(IMUReader *reader) {
-    memset(reader, 0, sizeof(*reader));
-    reader->shm_fd = -1;
-    reader->latest.valid = false;
-    
-    if (pthread_mutex_init(&reader->lock, NULL) != 0) {
-        fprintf(stderr, "Failed to initialize IMU reader mutex\n");
-        return -1;
-    }
-    
-    // TODO: Open /dev/shm/breezy_desktop_imu and map it
-    // See GNOME extension's devicedatastream.js for binary format reference
-    
-    return 0;
-}
-
-static void cleanup_imu_reader(IMUReader *reader) {
-    if (reader->shm_ptr && reader->shm_fd != -1) {
-        munmap(reader->shm_ptr, reader->shm_size);
-        close(reader->shm_fd);
-    }
-    pthread_mutex_destroy(&reader->lock);
-}
-
-static IMUData read_latest_imu(IMUReader *reader) {
-    IMUData result;
-    pthread_mutex_lock(&reader->lock);
-    result = reader->latest;
-    pthread_mutex_unlock(&reader->lock);
-    return result;
-}
 
 // Frame Buffer Implementation (Lock-free ring buffer)
 static int init_frame_buffer(FrameBuffer *fb, uint32_t width, uint32_t height) {
@@ -472,12 +440,30 @@ static void cleanup_render_thread(RenderThread *thread) {
 }
 
 static int load_shaders(RenderThread *thread) {
-    // TODO: Load vertex and fragment shaders from Sombrero.frag
-    // Port GLSL code from modules/sombrero/Sombrero.frag
+    // Try to load from multiple possible paths
+    const char *possible_paths[] = {
+        "../modules/sombrero/Sombrero.frag",
+        "../../modules/sombrero/Sombrero.frag",
+        "/usr/share/breezy-desktop/shaders/Sombrero.frag",
+        NULL
+    };
     
-    // Placeholder
-    printf("[Render] Shaders not yet implemented\n");
-    return -1;
+    const char *frag_path = NULL;
+    for (int i = 0; possible_paths[i]; i++) {
+        FILE *f = fopen(possible_paths[i], "r");
+        if (f) {
+            fclose(f);
+            frag_path = possible_paths[i];
+            break;
+        }
+    }
+    
+    if (!frag_path) {
+        fprintf(stderr, "[Shader] Sombrero.frag not found in any standard location\n");
+        return -1;
+    }
+    
+    return load_sombrero_shaders(thread, frag_path);
 }
 
 static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {

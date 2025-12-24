@@ -20,6 +20,11 @@ int init_drm_capture(CaptureThread *thread);
 int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t width, uint32_t height);
 void cleanup_drm_capture(CaptureThread *thread);
 
+// IMU reader functions (in imu_reader.c)
+int init_imu_reader(IMUReader *reader);
+void cleanup_imu_reader(IMUReader *reader);
+IMUData read_latest_imu(IMUReader *reader);
+
 // Shader loading functions (in shader_loader.c)
 int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path);
 
