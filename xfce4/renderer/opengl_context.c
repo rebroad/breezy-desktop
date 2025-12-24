@@ -257,9 +257,8 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
         return 0;
     }
     
-    // Check for DMA-BUF extensions
+    // Check for DMA-BUF extensions (check_dmabuf_extensions already logs the error)
     if (!check_dmabuf_extensions(egl_display)) {
-        fprintf(stderr, "[EGL] DMA-BUF import extension not available\n");
         return 0;
     }
     
