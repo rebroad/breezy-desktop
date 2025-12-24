@@ -111,6 +111,7 @@ struct RenderThread {
     Renderer *renderer;
     bool running;
     bool stop_requested;
+    bool thread_started;  // Track if thread was successfully started (for safe cleanup)
     
     uint32_t refresh_rate;  // AR glasses refresh rate (60/72/90/120 Hz)
     
@@ -130,6 +131,9 @@ struct RenderThread {
     // Texture for captured frames (DMA-BUF imported)
     GLuint frame_texture;   // 0 if not initialized
     EGLImageKHR frame_egl_image;  // EGL_NO_IMAGE_KHR if not initialized
+    
+    // DMA-BUF data shared with capture thread (protected by dmabuf_mutex)
+    pthread_mutex_t dmabuf_mutex;  // Protects DMA-BUF fields below
     int current_dmabuf_fd;  // -1 if not initialized
     uint32_t current_fb_id;  // Track framebuffer changes
     uint32_t current_format;  // DRM format of current framebuffer
@@ -275,6 +279,9 @@ static void *capture_thread_func(void *arg) {
         if (export_drm_framebuffer_to_dmabuf(thread, &dmabuf_fd, &format, &stride, &modifier) == 0) {
             RenderThread *render_thread = &thread->renderer->render_thread;
             
+            // Lock mutex to protect shared DMA-BUF data
+            pthread_mutex_lock(&render_thread->dmabuf_mutex);
+            
             // Close old fd if framebuffer changed
             if (render_thread->current_dmabuf_fd >= 0 && 
                 thread->fb_id != render_thread->current_fb_id) {
@@ -287,6 +294,8 @@ static void *capture_thread_func(void *arg) {
             render_thread->current_format = format;
             render_thread->current_stride = stride;
             render_thread->current_modifier = modifier;
+            
+            pthread_mutex_unlock(&render_thread->dmabuf_mutex);
             
             // Signal new frame available (marker frame - no pixel copy)
             uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
@@ -329,6 +338,7 @@ static int init_capture_thread(CaptureThread *thread, Renderer *renderer) {
     thread->renderer = renderer;
     thread->running = false;
     thread->stop_requested = false;
+    thread->thread_started = false;
     thread->drm_fd = -1;
     thread->connector_name = "XR-0";  // Default virtual connector name
     
@@ -343,8 +353,11 @@ static int init_capture_thread(CaptureThread *thread, Renderer *renderer) {
 
 static void cleanup_capture_thread(CaptureThread *thread) {
     thread->stop_requested = true;
-    if (thread->running) {
+    // Only join if thread was actually started (prevents double-join)
+    if (thread->thread_started && thread->running) {
         pthread_join(thread->thread, NULL);
+        thread->thread_started = false;
+        thread->running = false;
     }
     cleanup_drm_capture(thread);
 }
@@ -443,6 +456,7 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->renderer = renderer;
     thread->running = false;
     thread->stop_requested = false;
+    thread->thread_started = false;
     thread->x_display = NULL;
     thread->glx_context = NULL;
     thread->egl_display = EGL_NO_DISPLAY;
@@ -460,6 +474,12 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->current_modifier = 0;
     thread->vbo = 0;
     thread->vao = 0;
+    
+    // Initialize mutex for DMA-BUF data sharing
+    if (pthread_mutex_init(&thread->dmabuf_mutex, NULL) != 0) {
+        fprintf(stderr, "[Render] Failed to initialize DMA-BUF mutex\n");
+        return -1;
+    }
     
     // Create OpenGL context on AR glasses display
     if (init_opengl_context(thread) != 0) {
@@ -487,9 +507,15 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
 
 static void cleanup_render_thread(RenderThread *thread) {
     thread->stop_requested = true;
-    if (thread->running) {
+    // Only join if thread was actually started (prevents double-join)
+    if (thread->thread_started && thread->running) {
         pthread_join(thread->thread, NULL);
+        thread->thread_started = false;
+        thread->running = false;
     }
+    
+    // Destroy mutex
+    pthread_mutex_destroy(&thread->dmabuf_mutex);
     
     // Cleanup OpenGL resources
     if (thread->shader_program) {
@@ -554,26 +580,35 @@ static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {
     int height = fb->height;
     
     // Check if we have a new DMA-BUF to import (framebuffer changed)
-    if (thread->current_dmabuf_fd >= 0) {
-        // Use format/stride/modifier from capture thread
-        uint32_t format = thread->current_format;
-        uint32_t stride = thread->current_stride;
-        uint32_t modifier = thread->current_modifier;
-        
+    // Lock mutex to read shared DMA-BUF data
+    pthread_mutex_lock(&thread->dmabuf_mutex);
+    
+    int dmabuf_fd = thread->current_dmabuf_fd;
+    uint32_t fb_id = thread->current_fb_id;
+    uint32_t format = thread->current_format;
+    uint32_t stride = thread->current_stride;
+    uint32_t modifier = thread->current_modifier;
+    
+    // Mark as consumed immediately (capture thread will provide new one if needed)
+    if (dmabuf_fd >= 0) {
+        thread->current_dmabuf_fd = -1;
+    }
+    
+    pthread_mutex_unlock(&thread->dmabuf_mutex);
+    
+    if (dmabuf_fd >= 0) {
         // Import DMA-BUF as texture (zero-copy)
-        GLuint texture = import_dmabuf_as_texture(thread, thread->current_dmabuf_fd,
+        GLuint texture = import_dmabuf_as_texture(thread, dmabuf_fd,
                                                    width, height, format, stride, modifier);
         if (texture == 0) {
             log_error("Failed to import DMA-BUF as texture - rendering will be skipped\n");
             // Close fd on failure
-            close(thread->current_dmabuf_fd);
-            thread->current_dmabuf_fd = -1;
+            close(dmabuf_fd);
             return;
         }
         
         // fd ownership transferred to EGL image - don't close it here
         // It will be closed when EGL image is destroyed
-        thread->current_dmabuf_fd = -1;  // Mark as consumed
     }
     
     if (thread->frame_texture == 0) {
@@ -700,14 +735,16 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to create capture thread\n");
         goto cleanup;
     }
+    renderer.capture_thread.thread_started = true;
     
     if (pthread_create(&renderer.render_thread.thread, NULL,
                       render_thread_func, &renderer.render_thread) != 0) {
         fprintf(stderr, "Failed to create render thread\n");
+        // Stop capture thread and let cleanup handle joining
         renderer.capture_thread.stop_requested = true;
-        pthread_join(renderer.capture_thread.thread, NULL);
         goto cleanup;
     }
+    renderer.render_thread.thread_started = true;
     
     printf("Renderer running. Press Ctrl+C to stop.\n");
     
