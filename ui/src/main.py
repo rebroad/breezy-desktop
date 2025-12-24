@@ -33,7 +33,6 @@ gi.require_version('GLib', '2.0')
 from gi.repository import Adw, Gtk, Gio, GLib
 from .configmanager import ConfigManager
 from .files import get_config_dir, get_state_dir
-from .licensedialog import LicenseDialog
 from .statemanager import StateManager
 from .window import BreezydesktopWindow
 from .xrdriveripc import XRDriverIPC
@@ -74,13 +73,8 @@ class BreezydesktopApplication(Adw.Application):
 
         self.create_action('quit', self.on_quit_action, ['<primary>q'])
         self.create_action('about', self.on_about_action)
-        self.create_action('license', self.on_license_action)
         self.create_action('reset_driver', self.on_reset_driver_action)
         self._skip_verification = skip_verification or False
-
-        # always do this on start-up since the driver sometimes fails to update the license on boot,
-        # prevent showing a license warning unnecessarily
-        XRDriverIPC.get_instance().write_control_flags({'refresh_device_license': True})
 
     def do_activate(self):
         """Called when the application is activated.
@@ -107,11 +101,6 @@ class BreezydesktopApplication(Adw.Application):
                                 license_type=Gtk.License.GPL_3_0,
                                 wrap_license=True)
         about.present()
-
-    def on_license_action(self, widget, _):
-        dialog = LicenseDialog()
-        dialog.set_transient_for(self.props.active_window)
-        dialog.present()
 
     def on_reset_driver_action(self, widget, _):
         XRDriverIPC.get_instance().write_control_flags({

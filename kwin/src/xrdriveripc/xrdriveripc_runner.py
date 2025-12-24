@@ -67,8 +67,6 @@ def main() -> int:
 			res = getattr(inst, method)(int(arg) if arg else 1)
 		elif method in ("write_config", "write_control_flags") and payload_raw:
 			res = getattr(inst, method)(json.loads(payload_raw))
-		elif method in ("request_token", "verify_token") and arg:
-			res = getattr(inst, method)(arg)
 		else:
 			res = getattr(inst, method)()
 	except Exception:  # pragma: no cover - runtime failure path

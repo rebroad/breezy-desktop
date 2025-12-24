@@ -83,8 +83,6 @@ public:
 	std::optional<QJsonObject> retrieveDriverState();
 	bool writeConfig(const QJsonObject &configUpdate);
 	bool writeControlFlags(const QJsonObject &flags);
-	bool requestToken(const std::string &email);
-	bool verifyToken(const std::string &token);
 
 
 private:

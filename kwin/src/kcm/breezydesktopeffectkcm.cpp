@@ -359,8 +359,8 @@ BreezyDesktopEffectConfig::BreezyDesktopEffectConfig(QObject *parent, const KPlu
             if (!edit || edit->text().trimmed().isEmpty() || !labelStatus) return;
             setRequestInProgress({edit, sender()}, true);
             labelStatus->setVisible(false);
-            bool success = XRDriverIPC::instance().requestToken(edit->text().trimmed().toStdString());
-            showStatus(labelStatus, success, success ? tr("Request sent. Check your email for instructions.") : tr("Failed to send request."));
+            // License token requests removed - features are always enabled
+            showStatus(labelStatus, true, tr("License token requests are no longer required."));
             setRequestInProgress({edit, sender()}, false);
         });
         if (auto emailEdit = widget()->findChild<QLineEdit*>("lineEditLicenseEmail")) {
@@ -374,13 +374,8 @@ BreezyDesktopEffectConfig::BreezyDesktopEffectConfig(QObject *parent, const KPlu
             if (!edit || edit->text().trimmed().isEmpty() || !labelStatus) return;
             setRequestInProgress({edit, sender()}, true);
             labelStatus->setVisible(false);
-            bool success = XRDriverIPC::instance().verifyToken(edit->text().trimmed().toStdString());
-            if (success) {
-                QJsonObject flags; 
-                flags.insert(QStringLiteral("refresh_device_license"), true);
-                XRDriverIPC::instance().writeControlFlags(flags);
-            }
-            showStatus(labelStatus, success, success ? tr("Your license has been refreshed.") : tr("Invalid or expired token."));
+            // License verification removed - features are always enabled
+            showStatus(labelStatus, true, tr("License verification is no longer required."));
             setRequestInProgress({edit, sender()}, false);
         });
         if (auto tokenEdit = widget()->findChild<QLineEdit*>("lineEditLicenseToken")) {

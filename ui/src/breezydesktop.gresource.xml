@@ -7,12 +7,9 @@
     <file preprocess="xml-stripblanks">gtk/display-distance-dialog.ui</file>
     <file preprocess="xml-stripblanks">gtk/display-distance-dialog-content.ui</file>
     <file preprocess="xml-stripblanks">gtk/failed-verification.ui</file>
-    <file preprocess="xml-stripblanks">gtk/license-dialog.ui</file>
-    <file preprocess="xml-stripblanks">gtk/license-dialog-content.ui</file>
     <file preprocess="xml-stripblanks">gtk/no-device.ui</file>
     <file preprocess="xml-stripblanks">gtk/no-driver.ui</file>
     <file preprocess="xml-stripblanks">gtk/no-extension.ui</file>
-    <file preprocess="xml-stripblanks">gtk/no-license.ui</file>
     <file preprocess="xml-stripblanks">gtk/shortcut-dialog.ui</file>
     <file preprocess="xml-stripblanks">gtk/virtual-display-row.ui</file>
     <file preprocess="xml-stripblanks">gtk/window.ui</file>

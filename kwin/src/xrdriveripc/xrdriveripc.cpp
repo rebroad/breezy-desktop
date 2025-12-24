@@ -94,17 +94,3 @@ bool XRDriverIPC::writeControlFlags(const QJsonObject &flags) {
 	QByteArray out = invokePython(QStringLiteral("write_control_flags"), payload, {});
 	return !out.isEmpty();
 }
-
-bool XRDriverIPC::requestToken(const std::string &email) {
-	QByteArray out = invokePython(QStringLiteral("request_token"), {}, QString::fromStdString(email));
-	if (out.isEmpty()) return false;
-	QString result = QString::fromUtf8(out).trimmed().toLower();
-    return result == QStringLiteral("true");
-}
-
-bool XRDriverIPC::verifyToken(const std::string &token) {
-	QByteArray out = invokePython(QStringLiteral("verify_token"), {}, QString::fromStdString(token));
-	if (out.isEmpty()) return false;
-	QString result = QString::fromUtf8(out).trimmed().toLower();
-    return result == QStringLiteral("true");
-}

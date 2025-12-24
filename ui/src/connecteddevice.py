@@ -168,7 +168,6 @@ class ConnectedDevice(Gtk.Box):
 
         self.state_manager = StateManager.get_instance()
         self.state_manager.bind_property('follow-mode', self.follow_mode_switch, 'active', GObject.BindingFlags.DEFAULT)
-        self.state_manager.connect('notify::enabled-features-list', self._handle_enabled_features)
         self.state_manager.connect('notify::device-supports-sbs', self._handle_device_supports_sbs)
 
         self.follow_mode_switch.set_active(self.state_manager.get_property('follow-mode'))
