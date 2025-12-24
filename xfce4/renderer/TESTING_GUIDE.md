@@ -85,6 +85,10 @@ For development/debugging, you can run the renderer manually, but you must ensur
 3. **Create XR-0 virtual connector** (normally done by breezy-desktop):
    ```bash
    xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"
+   
+   Then enable AR mode (hides physical XR, shows virtual XR):
+   
+   xrandr --output XR-Manager --set AR_MODE 1
    xrandr --output XR-0 --auto
    ```
 

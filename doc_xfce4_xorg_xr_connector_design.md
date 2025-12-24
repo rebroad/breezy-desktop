@@ -213,9 +213,9 @@ Breezy communicates **directly with Xorg** via the XRandR extension (no intermed
 
 **Xorg modesetting driver → Breezy** (via RandR properties):
 
-- The driver reads the `AR_MODE` RandR property on `XR-0`
-- When `AR_MODE=true`: hide physical XR connector, show virtual XR connector
-- When `AR_MODE=false`: show physical XR connector, hide virtual XR connector (or disable it)
+- The driver reads the `AR_MODE` RandR property on **XR-Manager** (not on individual XR outputs)
+- When `AR_MODE=1` (enabled): hide physical XR connector, show virtual XR connectors
+- When `AR_MODE=0` (disabled): show physical XR connector, hide virtual XR connectors
 
 ### Comparison with Mutter/KWin
 
@@ -233,30 +233,34 @@ Breezy's XFCE4 backend (`xfce4/src/xfce4_backend.py`) will use Python XRandR bin
 1. **Check availability**:
    ```python
    def is_available(self):
-       # Check if XR-0 output exists via xrandr
-       result = subprocess.run(['xrandr', '--listmonitors'],
+       # Check if XR-Manager output exists via xrandr
+       result = subprocess.run(['xrandr', '--listoutputs'],
                               capture_output=True, text=True)
-       return 'XR-0' in result.stdout
+       return 'XR-Manager' in result.stdout
    ```
 
-2. **Create virtual display** (if not already present):
+2. **Create virtual display**:
    ```python
-   def create_virtual_display(self, width, height, framerate):
-       # XR-0 is always present (created by modesetting driver)
-       # Just enable it and set mode
-       subprocess.run(['xrandr', '--output', 'XR-0',
-                      '--mode', f'{width}x{height}', '--on'])
-       return 'XR-0'
+   def create_virtual_display(self, width, height, framerate, name="XR-0"):
+       # Create XR-0 via XR-Manager CREATE_XR_OUTPUT property
+       # Format: "NAME:WIDTH:HEIGHT:REFRESH"
+       create_cmd = f"{name}:{width}:{height}:{framerate}"
+       subprocess.run(['xrandr', '--output', 'XR-Manager',
+                      '--set', 'CREATE_XR_OUTPUT', create_cmd])
+       return name  # Returns the output name (e.g., "XR-0")
    ```
 
 3. **Enable AR mode**:
    ```python
    def enable_ar_mode(self):
-       # Set AR_MODE property via xrandr or direct XRandR API
+       # Set AR_MODE property via xrandr or direct XRandR API on XR-Manager
        # This tells the driver to hide physical XR, show virtual XR
-       subprocess.run(['xrandr', '--output', 'XR-0',
+       subprocess.run(['xrandr', '--output', 'XR-Manager',
                       '--set', 'AR_MODE', '1'])
    ```
+   
+   **Note**: AR_MODE must be set on **XR-Manager** (not on individual XR outputs like XR-0), 
+   as it's a global setting that controls visibility of all physical/virtual XR connectors.
 
 **Note**: For better performance and reliability, the backend should eventually use direct XRandR API calls (via `python-xlib` or `xcb`) instead of subprocess calls, but subprocess works for initial implementation.
 
