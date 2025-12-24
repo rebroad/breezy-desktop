@@ -237,6 +237,13 @@ breezy-desktop needs to:
    ```python
    subprocess.run(['xrandr', '--output', 'XR-Manager', 
                    '--set', 'CREATE_XR_OUTPUT', 'XR-0:1920:1080:60'])
+
+3. **Enable AR mode** - After creating XR-0:
+   ```python
+   subprocess.run(['xrandr', '--output', 'XR-Manager',
+                   '--set', 'AR_MODE', '1'])
+   ```
+   This hides the physical XR connector and shows the virtual XR connector.
    subprocess.run(['xrandr', '--output', 'XR-0', '--auto'])
    ```
 3. **Start renderer process** - Spawn as separate binary:

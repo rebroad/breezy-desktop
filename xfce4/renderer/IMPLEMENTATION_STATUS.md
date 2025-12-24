@@ -166,9 +166,15 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 2. **Virtual Connector Creation**: After calibration, breezy-desktop calls:
    ```bash
    xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"
-   xrandr --output XR-0 --auto
    ```
    - Requires XR-Manager to exist (virtual connector implementation in Xorg modesetting driver)
+
+3. **AR Mode Enablement**: After creating XR-0, breezy-desktop enables AR mode:
+   ```bash
+   xrandr --output XR-Manager --set AR_MODE 1
+   ```
+   - This hides the physical XR connector and shows the virtual XR connector(s)
+   - AR_MODE is a global setting on XR-Manager (not on individual XR outputs)
 
 3. **Renderer Startup**: breezy-desktop spawns renderer process:
    ```python
