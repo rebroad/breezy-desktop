@@ -4,6 +4,7 @@
  */
 
 #include "breezy_xfce4_renderer.h"
+#include "logging.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +13,7 @@
 static char *read_file_contents(const char *path, size_t *out_size) {
     FILE *f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "[Shader] Failed to open %s: %s\n", path, strerror(errno));
+        log_error("[Shader] Failed to open %s: %s\n", path, strerror(errno));
         return NULL;
     }
     
@@ -40,7 +41,7 @@ static char *read_file_contents(const char *path, size_t *out_size) {
 static GLuint compile_shader(GLenum type, const char *source) {
     GLuint shader = glCreateShader(type);
     if (shader == 0) {
-        fprintf(stderr, "[Shader] Failed to create shader\n");
+        log_error("[Shader] Failed to create shader\n");
         return 0;
     }
     
@@ -55,7 +56,7 @@ static GLuint compile_shader(GLenum type, const char *source) {
         if (info_len > 1) {
             char *info_log = malloc(info_len);
             glGetShaderInfoLog(shader, info_len, NULL, info_log);
-            fprintf(stderr, "[Shader] Compile error: %s\n", info_log);
+            log_error("[Shader] Compile error: %s\n", info_log);
             free(info_log);
         }
         glDeleteShader(shader);
@@ -68,7 +69,7 @@ static GLuint compile_shader(GLenum type, const char *source) {
 static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
     GLuint program = glCreateProgram();
     if (program == 0) {
-        fprintf(stderr, "[Shader] Failed to create program\n");
+        log_error("[Shader] Failed to create program\n");
         return 0;
     }
     
@@ -84,7 +85,7 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
         if (info_len > 1) {
             char *info_log = malloc(info_len);
             glGetProgramInfoLog(program, info_len, NULL, info_log);
-            fprintf(stderr, "[Shader] Link error: %s\n", info_log);
+            log_error("[Shader] Link error: %s\n", info_log);
             free(info_log);
         }
         glDeleteProgram(program);
@@ -110,7 +111,7 @@ int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path) {
     size_t frag_size;
     char *frag_shader_src = read_file_contents(frag_shader_path, &frag_size);
     if (!frag_shader_src) {
-        fprintf(stderr, "[Shader] Failed to load fragment shader from %s\n", frag_shader_path);
+        log_error("[Shader] Failed to load fragment shader from %s\n", frag_shader_path);
         return -1;
     }
     
@@ -141,7 +142,7 @@ int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path) {
     thread->fragment_shader = fragment_shader;
     thread->shader_program = program;
     
-    printf("[Shader] Shaders loaded and compiled successfully\n");
+    log_info("[Shader] Shaders loaded and compiled successfully\n");
     return 0;
 }
 

@@ -56,7 +56,7 @@ static int find_drm_device_with_xr_connector(const char *connector_name, char *d
     
     dir = opendir(DRM_DEVICE_PATH);
     if (!dir) {
-        fprintf(stderr, "[DRM] Failed to open %s: %s\n", DRM_DEVICE_PATH, strerror(errno));
+        log_error("[DRM] Failed to open %s: %s\n", DRM_DEVICE_PATH, strerror(errno));
         return -1;
     }
     
@@ -131,23 +131,23 @@ int init_drm_capture(CaptureThread *thread) {
     
     // Find DRM device with virtual XR connector
     if (find_drm_device_with_xr_connector(thread->connector_name, device_path, sizeof(device_path)) < 0) {
-        fprintf(stderr, "[DRM] Failed to find DRM device with connector %s\n", thread->connector_name);
+        log_error("[DRM] Failed to find DRM device with connector %s\n", thread->connector_name);
         return -1;
     }
     
     // Open DRM device
     thread->drm_fd = open(device_path, O_RDWR | O_CLOEXEC);
     if (thread->drm_fd < 0) {
-        fprintf(stderr, "[DRM] Failed to open %s: %s\n", device_path, strerror(errno));
+        log_error("[DRM] Failed to open %s: %s\n", device_path, strerror(errno));
         return -1;
     }
     
-    printf("[DRM] Opened device: %s\n", device_path);
+    log_info("[DRM] Opened device: %s\n", device_path);
     
     // Get resources
     drmModeRes *resources = drmModeGetResources(thread->drm_fd);
     if (!resources) {
-        fprintf(stderr, "[DRM] Failed to get DRM resources\n");
+        log_error("[DRM] Failed to get DRM resources\n");
         close(thread->drm_fd);
         thread->drm_fd = -1;
         return -1;
@@ -181,8 +181,8 @@ int init_drm_capture(CaptureThread *thread) {
                                         thread->height = thread->fb_info->height;
                                         thread->fb_handle = thread->fb_info->handle;
                                         
-                                        printf("[DRM] Found framebuffer: %dx%d, handle=%u\n",
-                                               thread->width, thread->height, thread->fb_handle);
+                                        log_debug("[DRM] Found framebuffer: %dx%d, handle=%u\n",
+                                                  thread->width, thread->height, thread->fb_handle);
                                     }
                                 }
                                 drmModeFreeCrtc(crtc);
@@ -201,7 +201,7 @@ int init_drm_capture(CaptureThread *thread) {
     drmModeFreeResources(resources);
     
     if (thread->connector_id == 0 || thread->crtc_id == 0) {
-        fprintf(stderr, "[DRM] Failed to find connector/CRTC for %s\n", thread->connector_name);
+        log_error("[DRM] Failed to find connector/CRTC for %s\n", thread->connector_name);
         close(thread->drm_fd);
         thread->drm_fd = -1;
         return -1;

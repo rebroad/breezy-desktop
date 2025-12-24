@@ -264,8 +264,8 @@ static bool read_latest_frame(FrameBuffer *fb, uint8_t **data, struct timespec *
 static void *capture_thread_func(void *arg) {
     CaptureThread *thread = (CaptureThread *)arg;
     
-    printf("[Capture] Thread started for %dx%d@%dHz\n",
-           thread->width, thread->height, thread->framerate);
+    log_info("[Capture] Thread started for %dx%d@%dHz\n",
+             thread->width, thread->height, thread->framerate);
     
     const double frame_time = 1.0 / thread->framerate;
     struct timespec next_frame_time;
@@ -329,7 +329,7 @@ static void *capture_thread_func(void *arg) {
         }
     }
     
-    printf("[Capture] Thread stopping\n");
+    log_info("[Capture] Thread stopping\n");
     return NULL;
 }
 
@@ -344,7 +344,7 @@ static int init_capture_thread(CaptureThread *thread, Renderer *renderer) {
     
     // Initialize DRM capture
     if (init_drm_capture(thread) < 0) {
-        fprintf(stderr, "[Capture] Failed to initialize DRM capture\n");
+        log_error("[Capture] Failed to initialize DRM capture\n");
         return -1;
     }
     
@@ -366,7 +366,7 @@ static void cleanup_capture_thread(CaptureThread *thread) {
 static void *render_thread_func(void *arg) {
     RenderThread *thread = (RenderThread *)arg;
     
-    printf("[Render] Thread started at %dHz\n", thread->refresh_rate);
+    log_info("[Render] Thread started at %dHz\n", thread->refresh_rate);
     
     const double frame_time = 1.0 / thread->refresh_rate;
     struct timespec next_frame_time;
@@ -417,7 +417,7 @@ static void *render_thread_func(void *arg) {
         }
     }
     
-    printf("[Render] Thread stopping\n");
+    log_info("[Render] Thread stopping\n");
     return NULL;
 }
 
@@ -477,31 +477,31 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     
     // Initialize mutex for DMA-BUF data sharing
     if (pthread_mutex_init(&thread->dmabuf_mutex, NULL) != 0) {
-        fprintf(stderr, "[Render] Failed to initialize DMA-BUF mutex\n");
+        log_error("[Render] Failed to initialize DMA-BUF mutex\n");
         return -1;
     }
     
     // Create OpenGL context on AR glasses display
     if (init_opengl_context(thread) != 0) {
-        fprintf(stderr, "[Render] Failed to create OpenGL context\n");
+        log_error("[Render] Failed to create OpenGL context\n");
         return -1;
     }
     
     // Load and compile GLSL shaders from Sombrero.frag
     if (load_shaders(thread) != 0) {
-        fprintf(stderr, "[Render] Failed to load shaders\n");
+        log_error("[Render] Failed to load shaders\n");
         cleanup_opengl_context(thread);
         return -1;
     }
     
     // Create fullscreen quad VBO/VAO
     if (create_fullscreen_quad(&thread->vbo, &thread->vao) != 0) {
-        fprintf(stderr, "[Render] Failed to create fullscreen quad\n");
+        log_error("[Render] Failed to create fullscreen quad\n");
         cleanup_opengl_context(thread);
         return -1;
     }
     
-    printf("[Render] Render thread initialized successfully\n");
+    log_info("[Render] Render thread initialized successfully\n");
     return 0;
 }
 
@@ -563,7 +563,7 @@ static int load_shaders(RenderThread *thread) {
     }
     
     if (!frag_path) {
-        fprintf(stderr, "[Shader] Sombrero.frag not found in any standard location\n");
+        log_error("[Shader] Sombrero.frag not found in any standard location\n");
         return -1;
     }
     
@@ -694,25 +694,25 @@ int main(int argc, char *argv[]) {
     if (init_frame_buffer(&renderer.frame_buffer,
                          renderer.virtual_width,
                          renderer.virtual_height) != 0) {
-        fprintf(stderr, "Failed to initialize frame buffer\n");
+        log_error("Failed to initialize frame buffer\n");
         return 1;
     }
     
     if (init_imu_reader(&renderer.imu_reader) != 0) {
-        fprintf(stderr, "Failed to initialize IMU reader\n");
+        log_error("Failed to initialize IMU reader\n");
         cleanup_frame_buffer(&renderer.frame_buffer);
         return 1;
     }
     
     if (init_capture_thread(&renderer.capture_thread, &renderer) != 0) {
-        fprintf(stderr, "Failed to initialize capture thread\n");
+        log_error("Failed to initialize capture thread\n");
         cleanup_imu_reader(&renderer.imu_reader);
         cleanup_frame_buffer(&renderer.frame_buffer);
         return 1;
     }
     
     if (init_render_thread(&renderer.render_thread, &renderer) != 0) {
-        fprintf(stderr, "Failed to initialize render thread\n");
+        log_error("Failed to initialize render thread\n");
         cleanup_capture_thread(&renderer.capture_thread);
         cleanup_imu_reader(&renderer.imu_reader);
         cleanup_frame_buffer(&renderer.frame_buffer);
@@ -732,21 +732,21 @@ int main(int argc, char *argv[]) {
     
     if (pthread_create(&renderer.capture_thread.thread, NULL,
                       capture_thread_func, &renderer.capture_thread) != 0) {
-        fprintf(stderr, "Failed to create capture thread\n");
+        log_error("Failed to create capture thread\n");
         goto cleanup;
     }
     renderer.capture_thread.thread_started = true;
     
     if (pthread_create(&renderer.render_thread.thread, NULL,
                       render_thread_func, &renderer.render_thread) != 0) {
-        fprintf(stderr, "Failed to create render thread\n");
+        log_error("Failed to create render thread\n");
         // Stop capture thread and let cleanup handle joining
         renderer.capture_thread.stop_requested = true;
         goto cleanup;
     }
     renderer.render_thread.thread_started = true;
     
-    printf("Renderer running. Press Ctrl+C to stop.\n");
+    log_info("Renderer running. Press Ctrl+C to stop.\n");
     
     // Main loop
     while (renderer.running) {

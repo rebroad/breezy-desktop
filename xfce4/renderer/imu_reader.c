@@ -6,6 +6,7 @@
  */
 
 #include "breezy_xfce4_renderer.h"
+#include "logging.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -47,21 +48,21 @@ int init_imu_reader(IMUReader *reader) {
     reader->latest.valid = false;
     
     if (pthread_mutex_init(&reader->lock, NULL) != 0) {
-        fprintf(stderr, "[IMU] Failed to initialize mutex\n");
+        log_error("[IMU] Failed to initialize mutex\n");
         return -1;
     }
     
     // Open shared memory file
     reader->shm_fd = open(IMU_SHM_PATH, O_RDONLY);
     if (reader->shm_fd < 0) {
-        fprintf(stderr, "[IMU] Failed to open %s: %s\n", IMU_SHM_PATH, strerror(errno));
+        log_error("[IMU] Failed to open %s: %s\n", IMU_SHM_PATH, strerror(errno));
         return -1;
     }
     
     // Get file size
     struct stat st;
     if (fstat(reader->shm_fd, &st) < 0) {
-        fprintf(stderr, "[IMU] Failed to stat %s: %s\n", IMU_SHM_PATH, strerror(errno));
+        log_error("[IMU] Failed to stat %s: %s\n", IMU_SHM_PATH, strerror(errno));
         close(reader->shm_fd);
         reader->shm_fd = -1;
         return -1;
@@ -71,7 +72,7 @@ int init_imu_reader(IMUReader *reader) {
     // Map shared memory
     reader->shm_ptr = mmap(NULL, reader->shm_size, PROT_READ, MAP_SHARED, reader->shm_fd, 0);
     if (reader->shm_ptr == MAP_FAILED) {
-        fprintf(stderr, "[IMU] Failed to mmap %s: %s\n", IMU_SHM_PATH, strerror(errno));
+        log_error("[IMU] Failed to mmap %s: %s\n", IMU_SHM_PATH, strerror(errno));
         close(reader->shm_fd);
         reader->shm_fd = -1;
         return -1;
@@ -80,11 +81,11 @@ int init_imu_reader(IMUReader *reader) {
     // Check version
     uint8_t version = ((uint8_t *)reader->shm_ptr)[OFFSET_VERSION];
     if (version != DATA_LAYOUT_VERSION) {
-        fprintf(stderr, "[IMU] Version mismatch: expected %d, got %d\n", DATA_LAYOUT_VERSION, version);
+        log_warn("[IMU] Version mismatch: expected %d, got %d\n", DATA_LAYOUT_VERSION, version);
         // Continue anyway - might work
     }
     
-    printf("[IMU] Reader initialized, mapped %zu bytes\n", reader->shm_size);
+    log_info("[IMU] Reader initialized, mapped %zu bytes\n", reader->shm_size);
     return 0;
 }
 

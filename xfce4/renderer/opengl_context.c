@@ -44,7 +44,7 @@ static int create_glx_context_on_display(RenderThread *thread, const char *displ
     // Open X display
     thread->x_display = XOpenDisplay(display_name);
     if (!thread->x_display) {
-        fprintf(stderr, "[GLX] Failed to open X display: %s\n", display_name ? display_name : "(default)");
+        log_error("[GLX] Failed to open X display: %s\n", display_name ? display_name : "(default)");
         return -1;
     }
     
@@ -65,7 +65,7 @@ static int create_glx_context_on_display(RenderThread *thread, const char *displ
     
     XVisualInfo *vis = glXChooseVisual(thread->x_display, screen, attribs);
     if (!vis) {
-        fprintf(stderr, "[GLX] No appropriate visual found\n");
+        log_error("[GLX] No appropriate visual found\n");
         XCloseDisplay(thread->x_display);
         thread->x_display = NULL;
         return -1;
@@ -101,7 +101,7 @@ static int create_glx_context_on_display(RenderThread *thread, const char *displ
     // Create GLX context
     thread->glx_context = glXCreateContext(thread->x_display, vis, NULL, GL_TRUE);
     if (!thread->glx_context) {
-        fprintf(stderr, "[GLX] Failed to create GLX context\n");
+        log_error("[GLX] Failed to create GLX context\n");
         XDestroyWindow(thread->x_display, thread->x_window);
         XFreeColormap(thread->x_display, cmap);
         XFree(vis);
@@ -112,7 +112,7 @@ static int create_glx_context_on_display(RenderThread *thread, const char *displ
     
     // Make context current
     if (!glXMakeCurrent(thread->x_display, thread->x_window, thread->glx_context)) {
-        fprintf(stderr, "[GLX] Failed to make context current\n");
+        log_error("[GLX] Failed to make context current\n");
         glXDestroyContext(thread->x_display, thread->glx_context);
         XDestroyWindow(thread->x_display, thread->x_window);
         XFreeColormap(thread->x_display, cmap);
@@ -128,23 +128,23 @@ static int create_glx_context_on_display(RenderThread *thread, const char *displ
         glXGetProcAddress((const GLubyte *)"glXSwapIntervalSGI");
     if (glXSwapIntervalSGI) {
         glXSwapIntervalSGI(1);  // 1 = vsync enabled
-        printf("[GLX] VSync enabled\n");
+        log_debug("[GLX] VSync enabled\n");
     } else {
         // Try MESA_swap_control
         PFNGLXSWAPINTERVALMESAPROC glXSwapIntervalMESA = (PFNGLXSWAPINTERVALMESAPROC)
             glXGetProcAddress((const GLubyte *)"glXSwapIntervalMESA");
         if (glXSwapIntervalMESA) {
             glXSwapIntervalMESA(1);
-            printf("[GLX] VSync enabled (MESA)\n");
+            log_debug("[GLX] VSync enabled (MESA)\n");
         } else {
-            printf("[GLX] Warning: VSync extension not available\n");
+            log_warn("[GLX] Warning: VSync extension not available\n");
         }
     }
     
-    printf("[GLX] OpenGL context created successfully\n");
-    printf("[GLX] OpenGL version: %s\n", glGetString(GL_VERSION));
-    printf("[GLX] OpenGL vendor: %s\n", glGetString(GL_VENDOR));
-    printf("[GLX] OpenGL renderer: %s\n", glGetString(GL_RENDERER));
+    log_info("[GLX] OpenGL context created successfully\n");
+    log_info("[GLX] OpenGL version: %s\n", glGetString(GL_VERSION));
+    log_info("[GLX] OpenGL vendor: %s\n", glGetString(GL_VENDOR));
+    log_info("[GLX] OpenGL renderer: %s\n", glGetString(GL_RENDERER));
     
     XFree(vis);
     return 0;
@@ -162,7 +162,7 @@ int init_opengl_context(RenderThread *thread) {
     // TODO: Try EGL/DRM direct access as fallback
     // This would be useful for headless rendering or direct DRM access
     
-    fprintf(stderr, "[OpenGL] Failed to create OpenGL context\n");
+    log_error("[OpenGL] Failed to create OpenGL context\n");
     return -1;
 }
 
