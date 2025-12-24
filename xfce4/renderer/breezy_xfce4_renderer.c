@@ -404,8 +404,21 @@ static void *render_thread_func(void *arg) {
         // Read latest IMU data
         IMUData imu = read_latest_imu(&thread->renderer->imu_reader);
         
+        // Update device config periodically (every second)
+        uint64_t current_time_ms = 0;
+        struct timespec ts;
+        if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+            current_time_ms = (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+        }
+        
+        if (thread->renderer->last_config_update_ms == 0 || 
+            current_time_ms - thread->renderer->last_config_update_ms > 1000) {
+            thread->renderer->device_config = read_device_config(&thread->renderer->imu_reader);
+            thread->renderer->last_config_update_ms = current_time_ms;
+        }
+        
         // Render frame with 3D transformations
-        render_frame(thread, &thread->renderer->frame_buffer, &imu);
+        render_frame(thread, &thread->renderer->frame_buffer, &imu, &thread->renderer->device_config);
         
         // Swap buffers (vsync)
         swap_buffers(thread);
