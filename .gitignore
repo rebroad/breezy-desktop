@@ -10,3 +10,7 @@ kwin/build-test/
 kwin/src/qml/calibrating.png
 kwin/src/qml/custom_banner.png
 kwin/src/kcm/com.xronlinux.BreezyDesktop.svg
+
+# Compiled object files and binaries
+*.o
+xfce4/renderer/breezy_xfce4_renderer
