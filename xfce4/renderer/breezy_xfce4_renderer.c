@@ -25,6 +25,10 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
