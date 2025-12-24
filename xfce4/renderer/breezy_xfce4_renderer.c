@@ -648,12 +648,12 @@ int main(int argc, char *argv[]) {
     renderer.virtual_framerate = atoi(argv[3]);
     renderer.render_refresh_rate = atoi(argv[4]);
     
-    printf("Breezy XFCE4 Renderer\n");
-    printf("Virtual display: %dx%d@%dHz\n",
-           renderer.virtual_width,
-           renderer.virtual_height,
-           renderer.virtual_framerate);
-    printf("Render rate: %dHz\n", renderer.render_refresh_rate);
+    log_info("Breezy XFCE4 Renderer starting\n");
+    log_info("Virtual display: %dx%d@%dHz\n",
+             renderer.virtual_width,
+             renderer.virtual_height,
+             renderer.virtual_framerate);
+    log_info("Render rate: %dHz\n", renderer.render_refresh_rate);
     
     // Initialize components
     if (init_frame_buffer(&renderer.frame_buffer,
