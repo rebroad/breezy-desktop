@@ -89,7 +89,6 @@ For development/debugging, you can run the renderer manually, but you must ensur
    Then enable AR mode (hides physical XR, shows virtual XR):
    
    xrandr --output XR-Manager --set AR_MODE 1
-   xrandr --output XR-0 --auto
    ```
 
 4. **Verify XR-0 exists**:
