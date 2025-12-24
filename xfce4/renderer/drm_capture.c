@@ -178,22 +178,10 @@ int init_drm_capture(CaptureThread *thread) {
                                     if (thread->fb_info) {
                                         thread->width = thread->fb_info->width;
                                         thread->height = thread->fb_info->height;
+                                        thread->fb_handle = thread->fb_info->handle;
                                         
-                                        // Map framebuffer
-                                        struct drm_mode_map_dumb map_req = {
-                                            .handle = thread->fb_info->handle,
-                                        };
-                                        if (drmIoctl(thread->drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_req) == 0) {
-                                            thread->fb_size = thread->fb_info->height * thread->fb_info->pitch;
-                                            thread->fb_map = mmap(0, thread->fb_size, PROT_READ, MAP_SHARED, thread->drm_fd, map_req.offset);
-                                            if (thread->fb_map == MAP_FAILED) {
-                                                fprintf(stderr, "[DRM] Failed to map framebuffer: %s\n", strerror(errno));
-                                                thread->fb_map = NULL;
-                                            } else {
-                                                printf("[DRM] Mapped framebuffer: %dx%d, pitch=%u, size=%zu\n",
-                                                       thread->width, thread->height, thread->fb_info->pitch, thread->fb_size);
-                                            }
-                                        }
+                                        printf("[DRM] Found framebuffer: %dx%d, handle=%u\n",
+                                               thread->width, thread->height, thread->fb_handle);
                                     }
                                 }
                                 drmModeFreeCrtc(crtc);

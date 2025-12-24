@@ -127,8 +127,14 @@ struct RenderThread {
     GLuint vertex_shader;   // 0 if not initialized
     GLuint fragment_shader; // 0 if not initialized
     
-    // Texture for captured frames
+    // Texture for captured frames (DMA-BUF imported)
     GLuint frame_texture;   // 0 if not initialized
+    EGLImageKHR frame_egl_image;  // EGL_NO_IMAGE_KHR if not initialized
+    int current_dmabuf_fd;  // -1 if not initialized
+    uint32_t current_fb_id;  // Track framebuffer changes
+    uint32_t current_format;  // DRM format of current framebuffer
+    uint32_t current_stride;  // Stride of current framebuffer
+    uint32_t current_modifier;  // Modifier of current framebuffer
     
     // VBO/VAO for fullscreen quad
     GLuint vbo;  // 0 if not initialized
@@ -446,6 +452,12 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->vertex_shader = 0;
     thread->fragment_shader = 0;
     thread->frame_texture = 0;
+    thread->frame_egl_image = EGL_NO_IMAGE_KHR;
+    thread->current_dmabuf_fd = -1;
+    thread->current_fb_id = 0;
+    thread->current_format = 0;
+    thread->current_stride = 0;
+    thread->current_modifier = 0;
     thread->vbo = 0;
     thread->vao = 0;
     
@@ -533,12 +545,75 @@ static int load_shaders(RenderThread *thread) {
 }
 
 static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu) {
-    // TODO: Apply 3D transformations using IMU data and GLSL shader
-    // 1. Upload frame to texture
-    // 2. Set shader uniforms (IMU quaternion, position, etc.)
-    // 3. Render fullscreen quad with shader
+    if (!thread->shader_program || !thread->vao) {
+        return;
+    }
     
-    // Placeholder
+    // Get frame dimensions
+    int width = fb->width;
+    int height = fb->height;
+    
+    // Check if we have a new DMA-BUF to import (framebuffer changed)
+    if (thread->current_dmabuf_fd >= 0) {
+        // Use format/stride/modifier from capture thread
+        uint32_t format = thread->current_format;
+        uint32_t stride = thread->current_stride;
+        uint32_t modifier = thread->current_modifier;
+        
+        // Import DMA-BUF as texture (zero-copy)
+        GLuint texture = import_dmabuf_as_texture(thread, thread->current_dmabuf_fd,
+                                                   width, height, format, stride, modifier);
+        if (texture == 0) {
+            fprintf(stderr, "[Render] Failed to import DMA-BUF as texture\n");
+            // Close fd on failure
+            close(thread->current_dmabuf_fd);
+            thread->current_dmabuf_fd = -1;
+            return;
+        }
+        
+        // fd ownership transferred to EGL image - don't close it here
+        // It will be closed when EGL image is destroyed
+        thread->current_dmabuf_fd = -1;  // Mark as consumed
+    }
+    
+    if (thread->frame_texture == 0) {
+        // No texture yet, skip rendering
+        return;
+    }
+    
+    // Read latest frame marker (for timestamp)
+    uint8_t *frame_data = NULL;
+    struct timespec frame_timestamp;
+    if (!read_latest_frame(fb, &frame_data, &frame_timestamp)) {
+        return;
+    }
+    
+    // Clear screen
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    // Use shader program
+    glUseProgram(thread->shader_program);
+    
+    // Bind VAO and texture
+    glBindVertexArray(thread->vao);
+    
+    // Set shader uniforms
+    // TODO: Set all Sombrero.frag uniforms based on IMU data and settings
+    // For now, just set the screen texture
+    GLint screen_tex_loc = glGetUniformLocation(thread->shader_program, "screenTexture");
+    if (screen_tex_loc >= 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, thread->frame_texture);
+        glUniform1i(screen_tex_loc, 0);
+    }
+    
+    // Note: frame_texture now directly references DRM framebuffer via DMA-BUF (zero-copy!)
+    
+    // Render fullscreen quad
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindVertexArray(0);
+    glUseProgram(0);
 }
 
 // Main renderer
