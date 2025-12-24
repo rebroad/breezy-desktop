@@ -192,7 +192,8 @@ int init_drm_capture(CaptureThread *thread) {
     return 0;
 }
 
-// Capture a frame from DRM framebuffer
+// Capture a frame from DRM framebuffer (CPU copy method)
+// TODO: Optimize to use DMA-BUF import for zero-copy (see PIPEWIRE_VS_DRM.md)
 int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t width, uint32_t height) {
     if (!thread->fb_map || thread->drm_fd < 0) {
         return -1;
@@ -232,6 +233,8 @@ int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t wi
     }
     
     // Copy framebuffer data (convert format if needed)
+    // NOTE: This CPU copy can be eliminated by using DMA-BUF import (zero-copy)
+    // See PIPEWIRE_VS_DRM.md for optimization details
     uint32_t pitch = thread->fb_info->pitch;
     uint8_t *src = (uint8_t *)thread->fb_map;
     

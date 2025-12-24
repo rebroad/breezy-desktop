@@ -28,7 +28,7 @@
 
 ## DRM/KMS Direct Access (Our XFCE4 Approach)
 
-### How It Works:
+### How It Works (Current Implementation):
 1. **Virtual Connector Created**: Xorg modesetting driver creates virtual XR connector (XR-0) with off-screen framebuffer
 
 2. **Direct Framebuffer Access**: Renderer directly maps the DRM framebuffer memory:
@@ -36,14 +36,65 @@
    drmModeGetFB() -> drmModeMapDumb() -> mmap()
    ```
 
-3. **Direct Memory Read**: Copy pixels directly from mapped memory to renderer's texture buffer
+3. **Memory Copy (Current)**: Copy pixels from mapped memory to renderer's texture buffer
+   - This adds latency and CPU overhead
+   - **Can be optimized** - see Zero-Copy Optimization below
 
-### Performance Characteristics:
-- ✅ **Lowest Latency**: Direct memory access, no protocol overhead
+### Performance Characteristics (Current Implementation):
+- ✅ **Low Latency**: Direct memory access, no protocol overhead
 - ✅ **Full Control**: We control format, timing, and access patterns
 - ✅ **No Dependencies**: Doesn't require Mutter or PipeWire APIs
+- ⚠️ **CPU Copy Overhead**: Currently copying pixels from mapped memory to texture (can be optimized)
 - ⚠️ **Manual Format Handling**: We need to handle format conversion ourselves
 - ⚠️ **More Complex**: Need to manage DRM resources, buffer synchronization
+
+### Zero-Copy Optimization (Future Enhancement)
+
+**Yes, we can avoid the copy!** The best approach is **DMA-BUF import** via EGL:
+
+1. **DMA-BUF Export**: The DRM framebuffer can be exported as a DMA-BUF file descriptor:
+   ```c
+   int dmabuf_fd;
+   drmPrimeHandleToFD(drm_fd, fb_info->handle, DRM_CLOEXEC, &dmabuf_fd);
+   ```
+
+2. **EGL Image Import**: Import the DMA-BUF directly as an EGL image (zero-copy):
+   ```c
+   EGLImageKHR egl_image = eglCreateImageKHR(
+	   egl_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL,
+	   attribs  // width, height, format, fd, offsets, strides, modifiers
+   );
+   ```
+
+3. **OpenGL Texture from EGL Image**: Create texture directly from EGL image:
+   ```c
+   glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, egl_image);
+   ```
+
+**Benefits:**
+- ✅ **Zero-copy**: GPU-to-GPU transfer, no CPU involvement
+- ✅ **Hardware-accelerated**: Uses GPU memory directly
+- ✅ **Lower latency**: No CPU copy = < 1 frame latency
+- ✅ **Lower CPU usage**: No pixel copying overhead
+
+**Requirements:**
+- EGL extensions: `EGL_EXT_image_dma_buf_import`, `EGL_EXT_image_dma_buf_import_modifiers`
+- GL extensions: `GL_OES_EGL_image` or `GL_EXT_EGL_image_storage`
+- DRM framebuffer must support DMA-BUF export (most modern drivers do)
+
+**This is exactly what Mutter uses** - it imports DMA-BUF directly as textures for zero-copy compositing.
+
+### Alternative: Direct Texture Write (Not Recommended)
+
+**Can the compositor write directly to the renderer's texture buffer?**
+
+Technically possible but **not recommended** because:
+- ❌ **Tight coupling**: Compositor must know about renderer's texture buffers
+- ❌ **Synchronization complexity**: Requires complex coordination
+- ❌ **Performance**: Still needs synchronization overhead
+- ❌ **Architecture**: Violates separation of concerns
+
+**Better approach**: Use DMA-BUF sharing (standard Linux graphics stack approach)
 
 ## Comparison
 
@@ -83,26 +134,33 @@
 - **Complexity**: Medium
 - **Benefit**: Best performance for our architecture, no protocol overhead
 
-## Recommendation: DRM/KMS Direct
+## Recommendation: DRM/KMS Direct with DMA-BUF Optimization
 
 For our use case (XFCE4 + custom virtual connector in Xorg driver), **DRM/KMS direct access is the better choice** because:
 
 1. **We Own the Virtual Connector**: Since we're creating it in the Xorg driver, we have full control and can optimize access patterns
 
-2. **Lower Latency**: Direct memory access means < 1 frame latency vs PipeWire's ~1-2 frames
+2. **Lowest Latency Possible**: With DMA-BUF import, we can achieve zero-copy GPU-to-GPU transfer = < 1 frame latency
 
 3. **No External APIs Needed**: Don't need Mutter's D-Bus API or complex PipeWire integration
 
-4. **Can Still Optimize**: We can implement DMA-BUF-like optimizations later if needed, but for now the CPU copy is acceptable (capture thread runs at 60fps, render thread at 90fps - plenty of headroom)
+4. **Optimization Path Clear**: Start with CPU copy (simple), then optimize to DMA-BUF import (zero-copy)
 
 5. **Simplicity**: One less moving part = easier to debug and maintain
 
-## Future Optimization: Hybrid Approach
+## Implementation Strategy
 
-If we need better performance later, we could:
-1. Keep DRM/KMS for capture (lowest latency)
-2. Add DMA-BUF support for zero-copy GPU-to-GPU transfer
-3. Use EGL image extensions to avoid CPU copy entirely
+### Phase 1: Initial Implementation (CPU Copy)
+- Map DRM framebuffer with `mmap()`
+- Copy pixels to OpenGL texture buffer
+- **Acceptable for initial testing** - capture at 60fps, render at 90fps
+- CPU overhead is manageable on modern systems
 
-But for initial implementation, DRM/KMS direct is the right choice.
+### Phase 2: Zero-Copy Optimization (DMA-BUF Import)
+- Export DRM framebuffer as DMA-BUF file descriptor
+- Import DMA-BUF as EGL image
+- Create OpenGL texture directly from EGL image
+- **Result**: Zero-copy, hardware-accelerated, minimal latency
+
+This is the **standard approach used by Mutter and other modern compositors** - DMA-BUF sharing for zero-copy GPU-to-GPU transfers.
 
