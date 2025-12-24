@@ -928,7 +928,7 @@ void BreezyDesktopEffectConfig::refreshLicenseUi(const QJsonObject &rootObj) {
         QJsonObject prodTierObj = prodTier.isUndefined() ? QJsonObject() : prodTier.toObject();
 
         auto features = license.value(QStringLiteral("features")).toObject();
-        QJsonValue prodFeature = features.value(QStringLiteral("productivity_basic"));
+        QJsonValue prodFeature = features.value(QStringLiteral("productivity"));
         QJsonObject prodFeatureObj = prodFeature.isUndefined() ? QJsonObject() : prodFeature.toObject();
         if (!prodTierObj.isEmpty() && !prodFeatureObj.isEmpty()) {
             const QString activePeriod = prodTierObj.value(QStringLiteral("active_period")).toString();

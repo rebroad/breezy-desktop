@@ -29,6 +29,6 @@ class LicenseFeatureRow(Adw.ActionRow):
         feature_names = {
             'sbs': lambda: _('Side-by-side mode (gaming)'),
             'smooth_follow': lambda: _('Smooth Follow (gaming)'),
-            'productivity_basic': lambda: _('Breezy Desktop (productivity)')
+            'productivity': lambda: _('Breezy Desktop (productivity)')
         }
         return feature_names[feature]()

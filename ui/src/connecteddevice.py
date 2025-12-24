@@ -4,7 +4,6 @@ from .customresolutiondialog import CustomResolutionDialog
 from .displaydistancedialog import DisplayDistanceDialog
 from .extensionsmanager import ExtensionsManager
 from .files import get_state_dir
-from .license import BREEZY_GNOME_FEATURES
 from .settingsmanager import SettingsManager
 from .shortcutdialog import bind_shortcut_settings
 from .statemanager import StateManager
@@ -245,11 +244,7 @@ class ConnectedDevice(Gtk.Box):
         self.settings.set_string('monitor-wrapping-scheme', widget.get_active_id())
 
     def _handle_enabled_features(self, state_manager, val):
-        enabled_breezy_features = [feature for feature in state_manager.get_property('enabled-features-list') if feature in BREEZY_GNOME_FEATURES]
-        breezy_features_granted = len(enabled_breezy_features) > 0
-        if not breezy_features_granted:
-            self.effect_enable_switch.set_active(False)
-        self.effect_enable_switch.set_sensitive(breezy_features_granted)
+        self.effect_enable_switch.set_sensitive(True)
 
     def _handle_device_supports_sbs(self, state_manager, val):
         if not state_manager.get_property('device-supports-sbs'):

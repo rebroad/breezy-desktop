@@ -19,7 +19,6 @@
 
 from gi.repository import Gtk, GLib
 from .extensionsmanager import ExtensionsManager
-from .license import BREEZY_GNOME_FEATURES
 from .licensedialog import LicenseDialog
 from .statemanager import StateManager
 from .settingsmanager import SettingsManager
@@ -77,10 +76,8 @@ class BreezydesktopWindow(Gtk.ApplicationWindow):
         GLib.idle_add(self._handle_state_update_gui, state_manager)
 
     def _handle_state_update_gui(self, state_manager):
-        enabled_breezy_features = [feature for feature in state_manager.get_property('enabled-features-list') if feature in BREEZY_GNOME_FEATURES]
-        breezy_features_granted = len(enabled_breezy_features) > 0
-        self.missing_breezy_features_banner.set_revealed(not breezy_features_granted)
-        self.license_action_needed_banner.set_revealed(state_manager.get_property('license-action-needed') == True)
+        self.missing_breezy_features_banner.set_revealed(False)
+        self.license_action_needed_banner.set_revealed(False)
 
         for child in self.main_content:
             self.main_content.remove(child)
