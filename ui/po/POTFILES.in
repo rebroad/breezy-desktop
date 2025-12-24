@@ -1,0 +1,4 @@
+# List of source files that contain translatable strings
+# This file is auto-generated - do not edit manually
+src/*.py
+src/gtk/*.ui
