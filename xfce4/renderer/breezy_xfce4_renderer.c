@@ -35,6 +35,9 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "breezy_xfce4_renderer.h"
 
@@ -196,11 +199,10 @@ static int init_frame_buffer(FrameBuffer *fb, uint32_t width, uint32_t height) {
 }
 
 static void cleanup_frame_buffer(FrameBuffer *fb) {
+    // With DMA-BUF, no pixel data to free
+    // Just clear pointers
     for (int i = 0; i < RING_BUFFER_SIZE; i++) {
-        if (fb->frames[i]) {
-            free(fb->frames[i]);
-            fb->frames[i] = NULL;
-        }
+        fb->frames[i] = NULL;
     }
 }
 
@@ -212,9 +214,9 @@ static bool write_frame(FrameBuffer *fb, const uint8_t *data, uint32_t width, ui
     // Lock-free write: advance write index
     uint32_t next_write = (fb->write_index + 1) % RING_BUFFER_SIZE;
     
-    // Copy frame data
-    size_t frame_size = fb->stride * height;
-    memcpy(fb->frames[next_write], data, frame_size);
+    // With DMA-BUF, we don't copy pixel data here
+    // data can be NULL - this is just a marker that a new frame is available
+    // The actual frame is accessed via DMA-BUF in the render thread
     
     // Update timestamp
     clock_gettime(CLOCK_MONOTONIC, &fb->timestamps[next_write]);
@@ -232,16 +234,20 @@ static bool read_latest_frame(FrameBuffer *fb, uint8_t **data, struct timespec *
     __sync_synchronize();  // Memory barrier
     uint32_t read_idx = fb->write_index;
     
-    if (!fb->frames[read_idx]) {
-        return false;
-    }
+    // With DMA-BUF, frames[read_idx] is NULL (we don't store pixel data)
+    // We just use this to detect new frames via timestamp
     
-    *data = fb->frames[read_idx];
     if (timestamp) {
         *timestamp = fb->timestamps[read_idx];
     }
     
-    return true;
+    // Return true if we have a valid timestamp (new frame available)
+    // data is set to NULL - render thread uses DMA-BUF instead
+    if (data) {
+        *data = NULL;  // No pixel data pointer with DMA-BUF
+    }
+    
+    return true;  // Always return true if write_index is valid
 }
 
 // Capture Thread Implementation
@@ -300,7 +306,6 @@ static void *capture_thread_func(void *arg) {
         }
     }
     
-    free(capture_buffer);
     printf("[Capture] Thread stopping\n");
     return NULL;
 }
@@ -488,10 +493,7 @@ static void cleanup_render_thread(RenderThread *thread) {
         glDeleteShader(thread->fragment_shader);
         thread->fragment_shader = 0;
     }
-    if (thread->frame_texture) {
-        glDeleteTextures(1, &thread->frame_texture);
-        thread->frame_texture = 0;
-    }
+    cleanup_dmabuf_texture(thread);
     if (thread->vbo) {
         glDeleteBuffers(1, &thread->vbo);
         thread->vbo = 0;

@@ -13,9 +13,38 @@
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>
+#include <drm/drm.h>
+#include <drm/drm_fourcc.h>
+#include <sys/ioctl.h>
+
+// drmPrimeHandleToFD is in libdrm, but we need to declare it if not available
+#ifndef DRM_IOCTL_PRIME_HANDLE_TO_FD
+#define DRM_IOCTL_PRIME_HANDLE_TO_FD DRM_IOWR(DRM_COMMAND_BASE + 17, struct drm_prime_handle)
+#endif
+
+// Fallback implementation if drmPrimeHandleToFD is not available
+static int drm_prime_handle_to_fd(int fd, uint32_t handle, uint32_t flags, int *prime_fd) {
+    struct drm_prime_handle args;
+    memset(&args, 0, sizeof(args));
+    args.handle = handle;
+    args.flags = flags;
+    
+    if (ioctl(fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &args) < 0) {
+        return -errno;
+    }
+    
+    *prime_fd = args.fd;
+    return 0;
+}
 
 #define DRM_DEVICE_PATH "/dev/dri"
 #define DRM_DEVICE_PREFIX "card"
+
+// DRM format definitions should be in drm_fourcc.h
+// Fallback definitions if header not available
+#ifndef DRM_FORMAT_XRGB8888
+#define DRM_FORMAT_XRGB8888 0x34325258  // 'XR24' in little-endian
+#endif
 
 // Find DRM device that has our virtual connector
 static int find_drm_device_with_xr_connector(const char *connector_name, char *device_path, size_t path_size) {
@@ -192,10 +221,9 @@ int init_drm_capture(CaptureThread *thread) {
     return 0;
 }
 
-// Capture a frame from DRM framebuffer (CPU copy method)
-// TODO: Optimize to use DMA-BUF import for zero-copy (see PIPEWIRE_VS_DRM.md)
-int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t width, uint32_t height) {
-    if (!thread->fb_map || thread->drm_fd < 0) {
+// Export DRM framebuffer as DMA-BUF file descriptor (zero-copy)
+int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint32_t *format, uint32_t *stride, uint32_t *modifier) {
+    if (thread->drm_fd < 0 || !thread->fb_info) {
         return -1;
     }
     
@@ -206,48 +234,72 @@ int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t wi
     }
     
     if (crtc->buffer_id != thread->fb_id) {
-        // Framebuffer changed - remap
+        // Framebuffer changed - update info
         if (thread->fb_info) {
             drmModeFreeFB(thread->fb_info);
-        }
-        if (thread->fb_map) {
-            munmap(thread->fb_map, thread->fb_size);
         }
         
         thread->fb_id = crtc->buffer_id;
         thread->fb_info = drmModeGetFB(thread->drm_fd, crtc->buffer_id);
         if (thread->fb_info) {
-            struct drm_mode_map_dumb map_req = {
-                .handle = thread->fb_info->handle,
-            };
-            if (drmIoctl(thread->drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_req) == 0) {
-                thread->fb_size = thread->fb_info->height * thread->fb_info->pitch;
-                thread->fb_map = mmap(0, thread->fb_size, PROT_READ, MAP_SHARED, thread->drm_fd, map_req.offset);
-            }
+            thread->fb_handle = thread->fb_info->handle;
+            thread->width = thread->fb_info->width;
+            thread->height = thread->fb_info->height;
         }
     }
     drmModeFreeCrtc(crtc);
     
-    if (!thread->fb_map || !thread->fb_info) {
+    if (!thread->fb_info) {
         return -1;
     }
     
-    // Copy framebuffer data (convert format if needed)
-    // NOTE: This CPU copy can be eliminated by using DMA-BUF import (zero-copy)
-    // See PIPEWIRE_VS_DRM.md for optimization details
-    uint32_t pitch = thread->fb_info->pitch;
-    uint8_t *src = (uint8_t *)thread->fb_map;
+    // Export framebuffer handle to DMA-BUF file descriptor
+    int fd = -1;
+    int ret;
     
-    // Assume RGB32 format - convert to RGBA if needed
-    for (uint32_t y = 0; y < height && y < thread->fb_info->height; y++) {
-        uint8_t *src_row = src + (y * pitch);
-        uint8_t *dst_row = output_buffer + (y * width * 4);
-        for (uint32_t x = 0; x < width && x < thread->fb_info->width; x++) {
-            dst_row[x * 4 + 0] = src_row[x * 4 + 0]; // R
-            dst_row[x * 4 + 1] = src_row[x * 4 + 1]; // G
-            dst_row[x * 4 + 2] = src_row[x * 4 + 2]; // B
-            dst_row[x * 4 + 3] = 255;                // A
+    // Try libdrm function first, fall back to ioctl if not available
+    #ifdef HAVE_DRM_PRIME_HANDLE_TO_FD
+    ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
+    #else
+    ret = drm_prime_handle_to_fd(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
+    #endif
+    
+    if (ret < 0 || fd < 0) {
+        fprintf(stderr, "[DRM] Failed to export DMA-BUF: %s\n", strerror(errno));
+        return -1;
+    }
+    
+    *dmabuf_fd = fd;
+    *stride = thread->fb_info->pitch;
+    
+    // Try to get format from framebuffer properties
+    // Query DRM object properties for format and modifier
+    drmModeObjectProperties *props = drmModeObjectGetProperties(thread->drm_fd, thread->fb_id, DRM_MODE_OBJECT_FB);
+    if (props) {
+        for (uint32_t i = 0; i < props->count_props; i++) {
+            drmModePropertyRes *prop = drmModeGetProperty(thread->drm_fd, props->props[i]);
+            if (prop) {
+                if (strcmp(prop->name, "FB_ID") == 0) {
+                    // Already have this
+                } else if (strcmp(prop->name, "IN_FMT_FOURCC") == 0 || strcmp(prop->name, "IN_FORMAT") == 0) {
+                    *format = (uint32_t)props->prop_values[i];
+                } else if (strcmp(prop->name, "IN_FMT_MODIFIER") == 0 || strcmp(prop->name, "IN_MODIFIER") == 0) {
+                    *modifier = (uint32_t)props->prop_values[i];
+                }
+                drmModeFreeProperty(prop);
+            }
         }
+        drmModeFreeObjectProperties(props);
+    }
+    
+    // Default to XRGB8888 if format not found
+    if (*format == 0) {
+        *format = DRM_FORMAT_XRGB8888;
+    }
+    
+    // Default to linear modifier if not found
+    if (*modifier == 0 || *modifier == DRM_FORMAT_MOD_INVALID) {
+        *modifier = DRM_FORMAT_MOD_LINEAR;
     }
     
     return 0;
@@ -255,10 +307,6 @@ int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t wi
 
 // Cleanup DRM capture
 void cleanup_drm_capture(CaptureThread *thread) {
-    if (thread->fb_map) {
-        munmap(thread->fb_map, thread->fb_size);
-        thread->fb_map = NULL;
-    }
     if (thread->fb_info) {
         drmModeFreeFB(thread->fb_info);
         thread->fb_info = NULL;

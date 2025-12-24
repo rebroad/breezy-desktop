@@ -15,6 +15,17 @@ typedef struct FrameBuffer FrameBuffer;
 typedef struct IMUReader IMUReader;
 typedef struct IMUData IMUData;
 
+// Structure to pass DMA-BUF info from capture to render thread
+typedef struct {
+    int dmabuf_fd;
+    uint32_t width;
+    uint32_t height;
+    uint32_t format;
+    uint32_t stride;
+    uint32_t modifier;
+    uint32_t fb_id;
+} DmabufFrame;
+
 // DRM capture functions (in drm_capture.c)
 int init_drm_capture(CaptureThread *thread);
 int capture_drm_frame(CaptureThread *thread, uint8_t *output_buffer, uint32_t width, uint32_t height);
@@ -32,6 +43,10 @@ int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path);
 int init_opengl_context(RenderThread *thread);
 void cleanup_opengl_context(RenderThread *thread);
 void swap_buffers(RenderThread *thread);
+
+// DMA-BUF texture import (in opengl_context.c)
+GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t width, uint32_t height, uint32_t format, uint32_t stride, uint32_t modifier);
+void cleanup_dmabuf_texture(RenderThread *thread);
 
 #endif
 

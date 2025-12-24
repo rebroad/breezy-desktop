@@ -9,12 +9,21 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
+#include <GL/glext.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <drm/drm_fourcc.h>
+
+// Fallback if headers don't define these
+#ifndef DRM_FORMAT_XRGB8888
+#define DRM_FORMAT_XRGB8888 0x34325258
+#endif
 
 // GLX helper functions
 static int find_ar_glasses_display(Display *dpy, int screen, Window *out_window) {
@@ -194,6 +203,164 @@ void swap_buffers(RenderThread *thread) {
         glXSwapBuffers(thread->x_display, thread->x_window);
     } else if (thread->egl_display != EGL_NO_DISPLAY && thread->egl_surface != EGL_NO_SURFACE) {
         eglSwapBuffers(thread->egl_display, thread->egl_surface);
+    }
+}
+
+// Check if EGL DMA-BUF extensions are available
+static bool check_dmabuf_extensions(EGLDisplay egl_display) {
+    const char *extensions = eglQueryString(egl_display, EGL_EXTENSIONS);
+    if (!extensions) {
+        return false;
+    }
+    
+    return (strstr(extensions, "EGL_EXT_image_dma_buf_import") != NULL);
+}
+
+// Import DMA-BUF file descriptor as OpenGL texture (zero-copy)
+GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t width, uint32_t height, uint32_t format, uint32_t stride, uint32_t modifier) {
+    // For now, we need EGL display - if using GLX, we'd need to create EGL context too
+    // For initial implementation, assume we're using GLX but can create EGL context if needed
+    
+    // Try to get EGL display from GLX
+    EGLDisplay egl_display = EGL_NO_DISPLAY;
+    if (thread->glx_context && thread->x_display) {
+        // We can create EGL context from same X display
+        egl_display = eglGetDisplay((EGLNativeDisplayType)thread->x_display);
+        if (egl_display == EGL_NO_DISPLAY) {
+            fprintf(stderr, "[EGL] Failed to get EGL display from X display\n");
+            return 0;
+        }
+        
+        if (!eglInitialize(egl_display, NULL, NULL)) {
+            fprintf(stderr, "[EGL] Failed to initialize EGL display\n");
+            return 0;
+        }
+    } else if (thread->egl_display != EGL_NO_DISPLAY) {
+        egl_display = thread->egl_display;
+    } else {
+        fprintf(stderr, "[EGL] No EGL display available\n");
+        return 0;
+    }
+    
+    // Check for DMA-BUF extensions
+    if (!check_dmabuf_extensions(egl_display)) {
+        fprintf(stderr, "[EGL] DMA-BUF import extension not available\n");
+        return 0;
+    }
+    
+    // Get function pointers
+    PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)
+        eglGetProcAddress("eglCreateImageKHR");
+    PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
+        eglGetProcAddress("eglDestroyImageKHR");
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)
+        eglGetProcAddress("glEGLImageTargetTexture2DOES");
+    
+    if (!eglCreateImageKHR || !eglDestroyImageKHR || !glEGLImageTargetTexture2DOES) {
+        fprintf(stderr, "[EGL] Required function pointers not available\n");
+        return 0;
+    }
+    
+    // Build EGL image attributes for DMA-BUF import
+    EGLint attribs[32];
+    int atti = 0;
+    
+    attribs[atti++] = EGL_WIDTH;
+    attribs[atti++] = (EGLint)width;
+    attribs[atti++] = EGL_HEIGHT;
+    attribs[atti++] = (EGLint)height;
+    attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
+    attribs[atti++] = (EGLint)format;
+    attribs[atti++] = EGL_DMA_BUF_PLANE0_FD_EXT;
+    attribs[atti++] = dmabuf_fd;
+    attribs[atti++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
+    attribs[atti++] = 0;
+    attribs[atti++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
+    attribs[atti++] = (EGLint)stride;
+    
+    // Add modifier if not linear
+    if (modifier != DRM_FORMAT_MOD_LINEAR && modifier != DRM_FORMAT_MOD_INVALID) {
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
+        attribs[atti++] = (EGLint)(modifier & 0xFFFFFFFF);
+        attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
+        attribs[atti++] = (EGLint)(modifier >> 32);
+    }
+    
+    attribs[atti++] = EGL_NONE;
+    
+    // Create EGL image from DMA-BUF
+    EGLImageKHR egl_image = eglCreateImageKHR(egl_display, EGL_NO_CONTEXT,
+                                               EGL_LINUX_DMA_BUF_EXT, NULL, attribs);
+    if (egl_image == EGL_NO_IMAGE_KHR) {
+        EGLint error = eglGetError();
+        fprintf(stderr, "[EGL] Failed to create image from DMA-BUF: 0x%x\n", error);
+        return 0;
+    }
+    
+    // Create or update OpenGL texture from EGL image
+    GLuint texture = 0;
+    if (thread->frame_texture == 0) {
+        glGenTextures(1, &texture);
+        thread->frame_texture = texture;
+    } else {
+        texture = thread->frame_texture;
+    }
+    
+    glBindTexture(GL_TEXTURE_2D, texture);
+    
+    // Cleanup old EGL image if it exists
+    if (thread->frame_egl_image != EGL_NO_IMAGE_KHR) {
+        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, EGL_NO_IMAGE_KHR);
+        eglDestroyImageKHR(egl_display, thread->frame_egl_image, NULL);
+    }
+    
+    // Bind EGL image to texture (zero-copy!)
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, egl_image);
+    
+    GLenum gl_error = glGetError();
+    if (gl_error != GL_NO_ERROR) {
+        fprintf(stderr, "[GL] Error binding EGL image to texture: 0x%x\n", gl_error);
+        eglDestroyImageKHR(egl_display, egl_image, NULL);
+        return 0;
+    }
+    
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    // Store EGL image for cleanup later
+    thread->frame_egl_image = egl_image;
+    
+    printf("[EGL] DMA-BUF imported as texture: %dx%d, format=0x%x, stride=%u\n",
+           width, height, format, stride);
+    
+    return texture;
+}
+
+void cleanup_dmabuf_texture(RenderThread *thread) {
+    EGLDisplay egl_display = thread->egl_display;
+    
+    if (thread->frame_egl_image != EGL_NO_IMAGE_KHR && egl_display != EGL_NO_DISPLAY) {
+        PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
+            eglGetProcAddress("eglDestroyImageKHR");
+        if (eglDestroyImageKHR) {
+            eglDestroyImageKHR(egl_display, thread->frame_egl_image, NULL);
+        }
+        thread->frame_egl_image = EGL_NO_IMAGE_KHR;
+    }
+    
+    if (thread->frame_texture != 0) {
+        glDeleteTextures(1, &thread->frame_texture);
+        thread->frame_texture = 0;
+    }
+    
+    if (thread->current_dmabuf_fd >= 0) {
+        close(thread->current_dmabuf_fd);
+        thread->current_dmabuf_fd = -1;
     }
 }
 
