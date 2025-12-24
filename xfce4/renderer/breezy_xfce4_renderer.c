@@ -730,6 +730,6 @@ cleanup:
     cleanup_imu_reader(&renderer.imu_reader);
     cleanup_frame_buffer(&renderer.frame_buffer);
     
-    printf("Renderer stopped.\n");
+    log_cleanup();
     return 0;
 }
