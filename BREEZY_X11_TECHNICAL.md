@@ -804,9 +804,13 @@ For maximum FPS and best user experience, the XFCE4 renderer is implemented in *
 - Dynamic resolution switching
 - Curved display support
 
-### 7.2 Future Enhancement: Virtual XR Outputs in Xorg
+### 7.2 Virtual XR Outputs in Xorg (XFCE4 Implementation)
 
-This section outlines future enhancements for virtual XR outputs in Xorg. These can be deferred since GNOME support already works. Virtual XR outputs would provide:
+**Note**: This section describes the virtual XR outputs implementation in the Xorg modesetting driver. This is **required for XFCE4 support** (not optional), as XFCE4 lacks compositor APIs like Mutter/KWin. For detailed API design and implementation status, see:
+- `doc_xfce4_xorg_xr_connector_design.md` - Detailed API design, data structures, and communication interface
+- `XORG_XR_IMPLEMENTATION_STATUS.md` - Current implementation status and remaining tasks
+
+Virtual XR outputs provide:
 - Arbitrary resolution support (not limited to physical display resolution)
 - Multiple virtual displays
 - Better cursor management
