@@ -754,14 +754,13 @@ int main(int argc, char *argv[]) {
     }
     
 cleanup:
-    // Stop threads
+    log_info("Shutting down renderer\n");
+    
+    // Stop threads - cleanup functions will handle joining safely
     renderer.capture_thread.stop_requested = true;
     renderer.render_thread.stop_requested = true;
     
-    pthread_join(renderer.capture_thread.thread, NULL);
-    pthread_join(renderer.render_thread.thread, NULL);
-    
-    // Cleanup
+    // Cleanup (will join threads if they were started)
     cleanup_render_thread(&renderer.render_thread);
     cleanup_capture_thread(&renderer.capture_thread);
     cleanup_imu_reader(&renderer.imu_reader);
