@@ -9,14 +9,25 @@ This document tracks what still needs to be implemented in the Xorg modesetting 
 Based on code review of `drmmode_xr_virtual.c`:
 
 ### ✅ Completed
-- XR-Manager output creation and RandR integration
-- Basic output creation infrastructure
-- RandR property handlers (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT, etc.)
-- Output enumeration hooks
 
-### 🚧 Still Needed
+**Xorg Virtual XR Infrastructure**:
+- XR-Manager control output creation and RandR integration
+- Virtual XR output creation infrastructure (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT)
+- Virtual CRTC creation for virtual outputs (software-based CRTCs)
+- Off-screen framebuffer/pixmap creation (GBM and dumb buffer support)
+- AR mode logic (hide/show physical XR connector via AR_MODE property)
+- Physical XR display detection via EDID and `non_desktop` marking
+- RandR integration (outputs appear in `xrandr` and Display Settings)
 
-#### 1. **Virtual CRTC Creation** (Critical - Prerequisite for XFCE4)
+**Breezy Desktop (GNOME)**:
+- Breezy Desktop working on X11 under GNOME
+- Mutter integration for 3D rendering
+- DisplayConfig D-Bus interface support
+- IMU integration via XRLinuxDriver
+
+### 🚧 In Progress
+
+#### 1. **Mode Handling for Virtual Outputs** (Required)
 
 **What's needed:**
 - Software-based virtual CRTCs that can be assigned to virtual XR outputs (XR-0, XR-1, etc.)
@@ -78,7 +89,7 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 **Reference:** `XORG_VIRTUAL_XR_API.md` lines 125-129
 
-#### 6. **DRM Framebuffer Export** (Required for Zero-Copy)
+#### 3. **XFCE4 Backend Integration** (Required)
 
 **What's needed:**
 - Export virtual output framebuffers as DMA-BUF file descriptors
@@ -100,23 +111,22 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 ## Implementation Order (Recommended)
 
-1. **Virtual CRTC Creation** - Required for compositor rendering
-2. **Off-screen Framebuffer Creation** - Required for capture
-3. **AR Mode Logic** - Required to switch between modes
-4. **Physical XR Display Detection** - Required to hide physical display in AR mode
-5. **Mode Handling** - Required for dynamic resolution
-6. **DRM Framebuffer Export** - Required for zero-copy capture
-7. **Integration** - Wire everything together
+1. **Mode Handling** - Required for dynamic resolution changes
+2. **DRM Framebuffer Export** - Required for zero-copy capture (DMA-BUF)
+3. **XFCE4 Backend Integration** - Required for end-to-end workflow
+4. **Integration Testing** - Validate all components work together
 
 ## Testing Requirements
 
 After implementation, verify:
-1. XR-Manager appears in `xrandr --listoutputs`
-2. XR-0 can be created via `xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"`
-3. XR-0 appears in `xrandr --listoutputs` after creation
-4. XR-0 framebuffer is accessible via DRM API (test with `breezy_xfce4_renderer`)
-5. AR mode toggle hides/shows physical XR connector correctly
-6. Physical XR connector is marked as `non_desktop` when appropriate
+1. ✅ XR-Manager appears in `xrandr --listoutputs`
+2. ✅ XR-0 can be created via `xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"`
+3. ✅ XR-0 appears in `xrandr --listoutputs` after creation
+4. ✅ AR mode toggle hides/shows physical XR connector correctly (`xrandr --output XR-Manager --set AR_MODE 1`)
+5. ✅ Physical XR connector is marked as `non_desktop` when appropriate
+6. 🚧 XR-0 framebuffer is accessible via DRM API (test with `breezy_xfce4_renderer`)
+7. 🚧 Mode changes via XR_WIDTH, XR_HEIGHT, XR_REFRESH properties work correctly
+8. 🚧 DMA-BUF export provides zero-copy framebuffer access
 
 ## Related Files
 

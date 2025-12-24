@@ -927,34 +927,9 @@ By rendering to virtual outputs instead of the physical XR display:
 - Only Breezy's 3D-rendered cursor is visible
 - The physical XR display receives the composited output (including the 3D cursor)
 
-### Current Status
+### Implementation Status
 
-**✅ Completed (GNOME)**:
-- Breezy Desktop working on X11 under GNOME
-- Mutter integration for 3D rendering
-- DisplayConfig D-Bus interface support
-- IMU integration via XRLinuxDriver
-
-**✅ Completed (Xorg Virtual XR Infrastructure)**:
-- XR-Manager control output creation and RandR integration
-- Virtual XR output creation infrastructure (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT)
-- Virtual CRTC creation for virtual outputs (software-based CRTCs)
-- Off-screen framebuffer/pixmap creation (GBM and dumb buffer support)
-- AR mode logic (hide/show physical XR connector via AR_MODE property)
-- Physical XR display detection via EDID and `non_desktop` marking
-- RandR integration (outputs appear in `xrandr` and Display Settings)
-
-**🚧 In Progress (XFCE4)**:
-- Mode handling for virtual outputs (dynamic resolution changes via XR_WIDTH, XR_HEIGHT, XR_REFRESH)
-- DRM framebuffer export for zero-copy capture (DMA-BUF)
-- XFCE4 backend integration (calibration detection, XR-0 creation, AR mode enablement)
-- Integration testing
-
-**📋 Planned Enhancements**:
-- Multiple virtual displays support (XR-1, XR-2, etc.)
-- Performance optimization
-
-**Note**: For detailed implementation status and remaining tasks, see `XORG_IMPLEMENTATION_STATUS.md`.
+For detailed implementation status, completed items, and remaining tasks, see **`XORG_IMPLEMENTATION_STATUS.md`**.
 
 ### Benefits of Virtual XR Outputs
 
