@@ -231,24 +231,29 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
     // For now, we need EGL display - if using GLX, we'd need to create EGL context too
     // For initial implementation, assume we're using GLX but can create EGL context if needed
     
-    // Try to get EGL display from GLX
+    // Get or initialize EGL display from GLX X display
     EGLDisplay egl_display = EGL_NO_DISPLAY;
-    if (thread->glx_context && thread->x_display) {
-        // We can create EGL context from same X display
+    
+    if (thread->egl_display != EGL_NO_DISPLAY) {
+        egl_display = thread->egl_display;
+    } else if (thread->glx_context && thread->x_display) {
+        // Initialize EGL display from same X display
         egl_display = eglGetDisplay((EGLNativeDisplayType)thread->x_display);
         if (egl_display == EGL_NO_DISPLAY) {
-            fprintf(stderr, "[EGL] Failed to get EGL display from X display\n");
+            log_error("Failed to get EGL display from X display\n");
             return 0;
         }
         
         if (!eglInitialize(egl_display, NULL, NULL)) {
-            fprintf(stderr, "[EGL] Failed to initialize EGL display\n");
+            log_error("Failed to initialize EGL display (error: 0x%x)\n", eglGetError());
             return 0;
         }
-    } else if (thread->egl_display != EGL_NO_DISPLAY) {
-        egl_display = thread->egl_display;
+        
+        log_debug("Initialized EGL display from GLX X display\n");
+        // Store for future use
+        thread->egl_display = egl_display;
     } else {
-        fprintf(stderr, "[EGL] No EGL display available\n");
+        log_error("No EGL display available (GLX context or X display missing)\n");
         return 0;
     }
     
