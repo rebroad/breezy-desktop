@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-03 16:04-0700\n"
+"POT-Creation-Date: 2025-12-23 23:16-0500\n"
 "PO-Revision-Date: 2024-08-17 10:08-0700\n"
 "Last-Translator:  <wayne@xronlinux.com>\n"
 "Language-Team: Ukrainian <trans-uk@lists.fedoraproject.org>\n"
@@ -18,49 +18,39 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: src/connecteddevice.py:29
+#: src/connecteddevice.py:28
 msgid ""
 "Switches your glasses into side-by-side mode and doubles the width of the "
 "display."
 msgstr "Переключає окуляри в режим «бок о бок» і подвоює ширину дисплея."
 
-#: src/connecteddevice.py:30
+#: src/connecteddevice.py:29
 msgid "This feature is not currently supported for your device."
 msgstr "Ця функція наразі не підтримується на вашому пристрої."
 
-#: src/connecteddevice.py:151
+#: src/connecteddevice.py:150
 #, fuzzy
 msgid "Set Focused Display Distance"
 msgstr "Відстань дисплея"
 
-#: src/connecteddevice.py:152
+#: src/connecteddevice.py:151
 msgid "Use a closer value so the display zooms in when you look at it."
 msgstr ""
 
-#: src/connecteddevice.py:159
+#: src/connecteddevice.py:158
 #, fuzzy
 msgid "Set All Displays Distance"
 msgstr "Відстань дисплея"
 
-#: src/connecteddevice.py:160
+#: src/connecteddevice.py:159
 msgid "Use a farther value so the displays are zoomed out when you look away."
 msgstr ""
 
-#: src/connecteddevice.py:283
+#: src/connecteddevice.py:277
 msgid ""
 "Unable to add virtual displays on this machine. Wayland, xdg-desktop-portal, "
 "and the pipewire GStreamer plugin are required."
 msgstr ""
-
-#: src/connecteddevice.py:317
-#, fuzzy
-msgid "Focused display"
-msgstr "Відстань дисплея"
-
-#: src/connecteddevice.py:323
-#, fuzzy
-msgid "All displays"
-msgstr "Викривлений дисплей"
 
 #: src/displaydistancedialogcontent.py:41
 msgid "closer"
@@ -74,99 +64,9 @@ msgstr ""
 msgid "farther"
 msgstr ""
 
-#: src/licensedialogcontent.py:63
-msgid "Paid Tier Status"
-msgstr "Статус платного рівня"
-
-#: src/licensedialogcontent.py:71
-msgid "Feature Availability"
-msgstr "Статус функцій"
-
-#: src/licensefeaturerow.py:15 src/shortcutdialog.py:104
+#: src/shortcutdialog.py:104
 msgid "Disabled"
 msgstr "Вимкнено"
-
-#: src/licensefeaturerow.py:18
-msgid "In trial"
-msgstr "У пробному режимі"
-
-#: src/licensefeaturerow.py:18
-msgid "Enabled"
-msgstr "Увімкнено"
-
-#: src/licensefeaturerow.py:24 src/licensetierrow.py:30
-#, python-brace-format
-msgid " ({time_remaining} remaining)"
-msgstr "({time_remaining} залишилося)"
-
-#: src/licensefeaturerow.py:30
-msgid "Side-by-side mode (gaming)"
-msgstr "Режим «бок о бок» (ігровий режим)"
-
-#: src/licensefeaturerow.py:31
-msgid "Smooth Follow (gaming)"
-msgstr "Плавне слідування (ігровий режим)"
-
-#: src/licensefeaturerow.py:32
-msgid "Breezy Desktop (productivity)"
-msgstr "Breezy Desktop (продуктивний прежим)"
-
-#: src/licensetierrow.py:24
-msgid "Active"
-msgstr "Активний"
-
-#: src/licensetierrow.py:24
-msgid "Inactive"
-msgstr "Неактивний"
-
-#: src/licensetierrow.py:41
-#, python-brace-format
-msgid "<b>${amount}</b> USD"
-msgstr "<b>${amount}</b> USD"
-
-#: src/licensetierrow.py:43
-msgid " to renew"
-msgstr " для оновлення"
-
-#: src/licensetierrow.py:45
-msgid " to upgrade"
-msgstr " для удосконалювання"
-
-#: src/licensetierrow.py:47
-msgid "Paid through next renewal period"
-msgstr "Оплата до наступного періоду"
-
-#: src/licensetierrow.py:56
-msgid "Gaming"
-msgstr "Ігровий режим"
-
-#: src/licensetierrow.py:57
-msgid "Productivity"
-msgstr "Продуктивний режим"
-
-#: src/licensetierrow.py:63
-msgid " - renewing monthly"
-msgstr " - щомісячне продовження"
-
-#: src/licensetierrow.py:64
-msgid " - renewing yearly"
-msgstr " - щорічне продовження"
-
-#: src/licensetierrow.py:65
-msgid "with lifetime access"
-msgstr "з довічним доступом"
-
-#: src/licensetierrow.py:72
-msgid "Monthly"
-msgstr "Щомісячно"
-
-#: src/licensetierrow.py:73
-msgid "Yearly"
-msgstr "Щорічно"
-
-#: src/licensetierrow.py:74
-msgid "Lifetime"
-msgstr "Довічно"
 
 #: src/time.py:14
 msgid "less than an hour"
@@ -592,22 +492,6 @@ msgstr ""
 "Ваша настройка Breezy GNOME є невірною або неповною. Будь ласка, запустіть "
 "скрипт настройки повторно. Повідомте про цю проблему, якщо вона не зникає."
 
-#: src/gtk/license-dialog-content.ui:15
-msgid "Donate"
-msgstr "Донатити"
-
-#: src/gtk/license-dialog-content.ui:31
-msgid "Request a token"
-msgstr "Запитати токен"
-
-#: src/gtk/license-dialog-content.ui:39
-msgid "Verify token"
-msgstr "Перевірити токен"
-
-#: src/gtk/license-dialog.ui:5 src/gtk/window.ui:91
-msgid "License Details"
-msgstr "Деталі ліцензії"
-
 #: src/gtk/no-device.ui:13
 msgid "No device connected"
 msgstr "Жоден пристрій не підключено"
@@ -664,42 +548,6 @@ msgstr ""
 "знову увійти, щоб використовувати його. В іншому випадку, будь ласка, "
 "дотримуйтесь інструкцій з налаштування Breezy GNOME."
 
-#: src/gtk/no-license.ui:13
-msgid "No license file was found"
-msgstr "Жоден файл ліцензії не знайдено"
-
-#: src/gtk/no-license.ui:14
-msgid ""
-"\n"
-"          The first time you use Breezy Desktop, an internet connection is "
-"required to retrieve your device's license.\n"
-"          \n"
-"          Don't worry, there's no obligation to donate at this time. If you "
-"haven't, you'll be given a trial license so you can decide if Breezy Desktop "
-"fits your needs. \n"
-"          \n"
-"          Once you obtain a license, trial or otherwise, you can use Breezy "
-"Desktop offline until features expire (or indefinitely, if you've chosen "
-"lifetime access).\n"
-"        "
-msgstr ""
-"\n"
-"Під час першого запуску програми Breezy Desktop потрібне підключення до "
-"Інтернету для отримання ліцензії на пристрій.\n"
-" \n"
-"Не хвилюйтеся, наразі немає обов'язку донатити. Якщо ви не зробили цього, "
-"вам буде надана пробна ліцензія, щоб ви могли вирішити, чи відповідає Breezy "
-"Desktop вашим потребам.\n"
-" \n"
-"Після отримання ліцензії, пробної або іншої, ви можете використовувати "
-"Breezy Desktop офлайн до закінчення терміну дії функції (або безстроково, "
-"якщо ви обрали довічний доступ).\n"
-"        "
-
-#: src/gtk/no-license.ui:27
-msgid "Try Again"
-msgstr "Спробуйте ще раз"
-
 #: src/gtk/shortcut-dialog.ui:5
 msgid "Assign Keyboard Shortcut"
 msgstr "Призначити сполучення клавіш"
@@ -716,25 +564,143 @@ msgstr "Breezy Desktop"
 msgid "Menu"
 msgstr "Меню"
 
-#: src/gtk/window.ui:43
-msgid "Some features expire soon"
-msgstr "Деякі функції закінчуються незабаром"
-
-#: src/gtk/window.ui:51 src/gtk/window.ui:76
-msgid "View details"
-msgstr "Переглянути деталі"
-
-#: src/gtk/window.ui:68
-msgid "Productivity features are disabled"
-msgstr "Функції продуктивного режиму відключені"
-
-#: src/gtk/window.ui:95
+#: src/gtk/window.ui:41
 msgid "Force Reset"
 msgstr "Скинути"
 
-#: src/gtk/window.ui:99
+#: src/gtk/window.ui:45
 msgid "About BreezyDesktop"
 msgstr "Про BreezyDesktop"
+
+#, fuzzy
+#~ msgid "Focused display"
+#~ msgstr "Відстань дисплея"
+
+#, fuzzy
+#~ msgid "All displays"
+#~ msgstr "Викривлений дисплей"
+
+#~ msgid "Paid Tier Status"
+#~ msgstr "Статус платного рівня"
+
+#~ msgid "Feature Availability"
+#~ msgstr "Статус функцій"
+
+#~ msgid "In trial"
+#~ msgstr "У пробному режимі"
+
+#~ msgid "Enabled"
+#~ msgstr "Увімкнено"
+
+#, python-brace-format
+#~ msgid " ({time_remaining} remaining)"
+#~ msgstr "({time_remaining} залишилося)"
+
+#~ msgid "Side-by-side mode (gaming)"
+#~ msgstr "Режим «бок о бок» (ігровий режим)"
+
+#~ msgid "Smooth Follow (gaming)"
+#~ msgstr "Плавне слідування (ігровий режим)"
+
+#~ msgid "Breezy Desktop (productivity)"
+#~ msgstr "Breezy Desktop (продуктивний прежим)"
+
+#~ msgid "Active"
+#~ msgstr "Активний"
+
+#~ msgid "Inactive"
+#~ msgstr "Неактивний"
+
+#, python-brace-format
+#~ msgid "<b>${amount}</b> USD"
+#~ msgstr "<b>${amount}</b> USD"
+
+#~ msgid " to renew"
+#~ msgstr " для оновлення"
+
+#~ msgid " to upgrade"
+#~ msgstr " для удосконалювання"
+
+#~ msgid "Paid through next renewal period"
+#~ msgstr "Оплата до наступного періоду"
+
+#~ msgid "Gaming"
+#~ msgstr "Ігровий режим"
+
+#~ msgid "Productivity"
+#~ msgstr "Продуктивний режим"
+
+#~ msgid " - renewing monthly"
+#~ msgstr " - щомісячне продовження"
+
+#~ msgid " - renewing yearly"
+#~ msgstr " - щорічне продовження"
+
+#~ msgid "with lifetime access"
+#~ msgstr "з довічним доступом"
+
+#~ msgid "Monthly"
+#~ msgstr "Щомісячно"
+
+#~ msgid "Yearly"
+#~ msgstr "Щорічно"
+
+#~ msgid "Lifetime"
+#~ msgstr "Довічно"
+
+#~ msgid "Donate"
+#~ msgstr "Донатити"
+
+#~ msgid "Request a token"
+#~ msgstr "Запитати токен"
+
+#~ msgid "Verify token"
+#~ msgstr "Перевірити токен"
+
+#~ msgid "License Details"
+#~ msgstr "Деталі ліцензії"
+
+#~ msgid "No license file was found"
+#~ msgstr "Жоден файл ліцензії не знайдено"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The first time you use Breezy Desktop, an internet connection "
+#~ "is required to retrieve your device's license.\n"
+#~ "          \n"
+#~ "          Don't worry, there's no obligation to donate at this time. If "
+#~ "you haven't, you'll be given a trial license so you can decide if Breezy "
+#~ "Desktop fits your needs. \n"
+#~ "          \n"
+#~ "          Once you obtain a license, trial or otherwise, you can use "
+#~ "Breezy Desktop offline until features expire (or indefinitely, if you've "
+#~ "chosen lifetime access).\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Під час першого запуску програми Breezy Desktop потрібне підключення до "
+#~ "Інтернету для отримання ліцензії на пристрій.\n"
+#~ " \n"
+#~ "Не хвилюйтеся, наразі немає обов'язку донатити. Якщо ви не зробили цього, "
+#~ "вам буде надана пробна ліцензія, щоб ви могли вирішити, чи відповідає "
+#~ "Breezy Desktop вашим потребам.\n"
+#~ " \n"
+#~ "Після отримання ліцензії, пробної або іншої, ви можете використовувати "
+#~ "Breezy Desktop офлайн до закінчення терміну дії функції (або безстроково, "
+#~ "якщо ви обрали довічний доступ).\n"
+#~ "        "
+
+#~ msgid "Try Again"
+#~ msgstr "Спробуйте ще раз"
+
+#~ msgid "Some features expire soon"
+#~ msgstr "Деякі функції закінчуються незабаром"
+
+#~ msgid "View details"
+#~ msgstr "Переглянути деталі"
+
+#~ msgid "Productivity features are disabled"
+#~ msgstr "Функції продуктивного режиму відключені"
 
 #~ msgid "Fast SBS mode switching"
 #~ msgstr "Швидке перемикання режиму SBS"

@@ -699,8 +699,6 @@ void BreezyDesktopEffectConfig::pollDriverState()
         ui.NeckSaverVerticalMultiplier->setValue(vertInt);
     }
 
-    refreshLicenseUi(stateJson);
-
     m_driverStateInitialized = true;
 }
 
@@ -882,121 +880,6 @@ bool BreezyDesktopEffectConfig::eventFilter(QObject *watched, QEvent *event) {
         }
     }
     return KCModule::eventFilter(watched, event);
-}
-
-static QString secondsToRemainingString(qint64 secs) {
-    if (secs <= 0) return {};
-
-    if (secs / 60 < 60) {
-        return QObject::tr("less than an hour");
-    }
-    if (secs / 3600 < 24) {
-        qint64 hours = secs / 3600;
-        if (hours == 1) return QObject::tr("1 hour");
-        return QObject::tr("%1 hours").arg(hours);
-    }
-    if ((secs / 86400) < 30 ) {
-        qint64 days = secs / 86400;
-        if (days == 1) return QObject::tr("1 day");
-        return QObject::tr("%1 days").arg(days);
-    }
-    return {};
-}
-
-void BreezyDesktopEffectConfig::refreshLicenseUi(const QJsonObject &rootObj) {
-    auto tab = widget()->findChild<QWidget*>("tabLicenseDetails");
-    if (!tab) return;
-    auto labelSummary = tab->findChild<QLabel*>("labelLicenseSummary");
-    if (!labelSummary) return;
-    auto donate = tab->findChild<QLabel*>("labelDonateLink");
-    auto globalWarn = widget()->findChild<QLabel*>("labelGlobalWarning");
-
-    QString status = tr("disabled");
-    QString renewalDescriptor = QStringLiteral("");
-    auto uiView = rootObj.value(QStringLiteral("ui_view")).toObject();
-    auto license = uiView.value(QStringLiteral("license")).toObject();
-    bool warningState = false;
-    bool expired = false;
-    if (!license.isEmpty()) {
-        auto tiers = license.value(QStringLiteral("tiers")).toObject();
-        QJsonValue prodTier = tiers.value(QStringLiteral("subscriber"));
-        QJsonObject prodTierObj = prodTier.isUndefined() ? QJsonObject() : prodTier.toObject();
-
-        auto features = license.value(QStringLiteral("features")).toObject();
-        QJsonValue prodFeature = features.value(QStringLiteral("productivity"));
-        QJsonObject prodFeatureObj = prodFeature.isUndefined() ? QJsonObject() : prodFeature.toObject();
-        if (!prodTierObj.isEmpty() && !prodFeatureObj.isEmpty()) {
-            const QString activePeriod = prodTierObj.value(QStringLiteral("active_period")).toString();
-            const bool isActive = !activePeriod.isEmpty();
-            if (isActive) {
-                status = tr("active");
-
-                QString periodDescriptor = activePeriod.contains(QStringLiteral("lifetime"), Qt::CaseInsensitive) ? 
-                    tr("lifetime") : 
-                    tr("%1 license").arg(activePeriod);
-
-                QString timeDescriptor;
-                auto secsVal = prodTierObj.value(QStringLiteral("funds_needed_in_seconds"));
-                if (secsVal.isDouble()) {
-                    qint64 secs = static_cast<qint64>(secsVal.toDouble());
-                    QString remaining = secondsToRemainingString(secs);
-                    if (!remaining.isEmpty()) {
-                        timeDescriptor = tr("%1 remaining").arg(remaining);
-                    }
-                }
-                renewalDescriptor = tr(" (%1)").arg(periodDescriptor);
-                warningState = !timeDescriptor.isEmpty();
-                if (warningState) {
-                    auto fundsNeeded = prodTierObj.value(QStringLiteral("funds_needed_by_period")).toObject().value(activePeriod).toDouble();
-                    if (fundsNeeded > 0.0) {
-                        QString fundsNeededDescriptor = tr("$%1 USD to renew").arg(fundsNeeded);
-                        renewalDescriptor = tr(" (%1, %2, %3)").arg(periodDescriptor, fundsNeededDescriptor, timeDescriptor);
-                    }
-                }
-            } else {
-                QJsonValue isEnabled = prodFeatureObj.value(QStringLiteral("is_enabled"));
-                QJsonValue isTrial = prodFeatureObj.value(QStringLiteral("is_trial"));
-                if (isEnabled.toBool()) {
-                    if (isTrial.toBool()) {
-                        status = tr("in trial");
-                        auto secsVal = prodFeatureObj.value(QStringLiteral("funds_needed_in_seconds"));
-                        if (secsVal.isDouble()) {
-                            qint64 secs = static_cast<qint64>(secsVal.toDouble());
-                            QString remaining = secondsToRemainingString(secs);
-                            warningState = !remaining.isEmpty();
-                            if (warningState) {
-                                QString timeDescriptor = tr("%1 remaining").arg(remaining);
-                                renewalDescriptor = tr(" (%1)").arg(timeDescriptor);
-                            }
-                        }
-                    }
-                } else {
-                    expired = true;
-                }
-            }
-        }
-    }
-    const QString message = tr("Productivity Tier features are %1%2").arg(status, renewalDescriptor);
-    labelSummary->setText(message);
-
-    if (donate) donate->setVisible(warningState || expired);
-
-    if (globalWarn && !globalWarn->isVisible()) {
-        if (warningState || expired) {
-            globalWarn->setText(message + (expired ? tr(" — effect disabled") : QString()));
-            globalWarn->setVisible(true);
-        } else {
-            globalWarn->clear();
-            globalWarn->setVisible(false);
-        }
-    }
-
-    if (expired) {
-        ui.EffectEnabled->setChecked(false);
-        ui.EffectEnabled->setEnabled(false);
-    } else {
-        ui.EffectEnabled->setEnabled(true);
-    }
 }
 
 #include "breezydesktopeffectkcm.moc"

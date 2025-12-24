@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-03 16:04-0700\n"
+"POT-Creation-Date: 2025-12-23 23:16-0500\n"
 "PO-Revision-Date: 2024-08-16 10:31-0700\n"
 "Last-Translator:  <wayne@xronlinux.com>\n"
 "Language-Team: Swedish <tp-sv@listor.tp-sv.se>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/connecteddevice.py:29
+#: src/connecteddevice.py:28
 msgid ""
 "Switches your glasses into side-by-side mode and doubles the width of the "
 "display."
@@ -25,43 +25,33 @@ msgstr ""
 "Växlar dina glasögon till side-by-side-läget och dubblerar bredden på "
 "visningen."
 
-#: src/connecteddevice.py:30
+#: src/connecteddevice.py:29
 msgid "This feature is not currently supported for your device."
 msgstr "Din enhet stöder inte den här funktionen för tillfället."
 
-#: src/connecteddevice.py:151
+#: src/connecteddevice.py:150
 #, fuzzy
 msgid "Set Focused Display Distance"
 msgstr "Avstånd till skärmen"
 
-#: src/connecteddevice.py:152
+#: src/connecteddevice.py:151
 msgid "Use a closer value so the display zooms in when you look at it."
 msgstr ""
 
-#: src/connecteddevice.py:159
+#: src/connecteddevice.py:158
 #, fuzzy
 msgid "Set All Displays Distance"
 msgstr "Avstånd till skärmen"
 
-#: src/connecteddevice.py:160
+#: src/connecteddevice.py:159
 msgid "Use a farther value so the displays are zoomed out when you look away."
 msgstr ""
 
-#: src/connecteddevice.py:283
+#: src/connecteddevice.py:277
 msgid ""
 "Unable to add virtual displays on this machine. Wayland, xdg-desktop-portal, "
 "and the pipewire GStreamer plugin are required."
 msgstr ""
-
-#: src/connecteddevice.py:317
-#, fuzzy
-msgid "Focused display"
-msgstr "Avstånd till skärmen"
-
-#: src/connecteddevice.py:323
-#, fuzzy
-msgid "All displays"
-msgstr "Böjd skärm"
 
 #: src/displaydistancedialogcontent.py:41
 msgid "closer"
@@ -75,99 +65,9 @@ msgstr ""
 msgid "farther"
 msgstr ""
 
-#: src/licensedialogcontent.py:63
-msgid "Paid Tier Status"
-msgstr "Betalningsstatus"
-
-#: src/licensedialogcontent.py:71
-msgid "Feature Availability"
-msgstr "Funktions tillgänglighet"
-
-#: src/licensefeaturerow.py:15 src/shortcutdialog.py:104
+#: src/shortcutdialog.py:104
 msgid "Disabled"
 msgstr "Inaktiverad"
-
-#: src/licensefeaturerow.py:18
-msgid "In trial"
-msgstr "Provperiod pågår"
-
-#: src/licensefeaturerow.py:18
-msgid "Enabled"
-msgstr "Aktiverad"
-
-#: src/licensefeaturerow.py:24 src/licensetierrow.py:30
-#, python-brace-format
-msgid " ({time_remaining} remaining)"
-msgstr " ({time_remaining} kvar)"
-
-#: src/licensefeaturerow.py:30
-msgid "Side-by-side mode (gaming)"
-msgstr "Side-by-side läge (spel)"
-
-#: src/licensefeaturerow.py:31
-msgid "Smooth Follow (gaming)"
-msgstr "Smidig följning (spel)"
-
-#: src/licensefeaturerow.py:32
-msgid "Breezy Desktop (productivity)"
-msgstr "Breezy Desktop (produktivitet)"
-
-#: src/licensetierrow.py:24
-msgid "Active"
-msgstr "Aktiv"
-
-#: src/licensetierrow.py:24
-msgid "Inactive"
-msgstr "Inaktiv"
-
-#: src/licensetierrow.py:41
-#, python-brace-format
-msgid "<b>${amount}</b> USD"
-msgstr "<b>${amount}</b> USD"
-
-#: src/licensetierrow.py:43
-msgid " to renew"
-msgstr " att förnya"
-
-#: src/licensetierrow.py:45
-msgid " to upgrade"
-msgstr " att uppgradera"
-
-#: src/licensetierrow.py:47
-msgid "Paid through next renewal period"
-msgstr "Betald genom nästa förnyelseperiod"
-
-#: src/licensetierrow.py:56
-msgid "Gaming"
-msgstr "Spel"
-
-#: src/licensetierrow.py:57
-msgid "Productivity"
-msgstr "Produktivitet"
-
-#: src/licensetierrow.py:63
-msgid " - renewing monthly"
-msgstr " - förnyar månadsvis"
-
-#: src/licensetierrow.py:64
-msgid " - renewing yearly"
-msgstr " - förnyar årligen"
-
-#: src/licensetierrow.py:65
-msgid "with lifetime access"
-msgstr "med livstidsåtkomst"
-
-#: src/licensetierrow.py:72
-msgid "Monthly"
-msgstr "Månatlig"
-
-#: src/licensetierrow.py:73
-msgid "Yearly"
-msgstr "Årlig"
-
-#: src/licensetierrow.py:74
-msgid "Lifetime"
-msgstr "Livstid"
 
 #: src/time.py:14
 msgid "less than an hour"
@@ -591,22 +491,6 @@ msgstr ""
 "Din Breezy GNOME inställning är ogiltig eller ofullständig. Var god kör "
 "inställning skriptet igen. Rapportera detta problem om det fortsätter."
 
-#: src/gtk/license-dialog-content.ui:15
-msgid "Donate"
-msgstr "Donera"
-
-#: src/gtk/license-dialog-content.ui:31
-msgid "Request a token"
-msgstr "Begär en token"
-
-#: src/gtk/license-dialog-content.ui:39
-msgid "Verify token"
-msgstr "Verifiera token"
-
-#: src/gtk/license-dialog.ui:5 src/gtk/window.ui:91
-msgid "License Details"
-msgstr "Licensdetaljer"
-
 #: src/gtk/no-device.ui:13
 msgid "No device connected"
 msgstr "Inget enhet ansluten"
@@ -664,42 +548,6 @@ msgstr ""
 "använda den. Annars, var god att följa Breezy GNOME inställning "
 "instruktioner."
 
-#: src/gtk/no-license.ui:13
-msgid "No license file was found"
-msgstr "Inget licens fil hittades"
-
-#: src/gtk/no-license.ui:14
-msgid ""
-"\n"
-"          The first time you use Breezy Desktop, an internet connection is "
-"required to retrieve your device's license.\n"
-"          \n"
-"          Don't worry, there's no obligation to donate at this time. If you "
-"haven't, you'll be given a trial license so you can decide if Breezy Desktop "
-"fits your needs. \n"
-"          \n"
-"          Once you obtain a license, trial or otherwise, you can use Breezy "
-"Desktop offline until features expire (or indefinitely, if you've chosen "
-"lifetime access).\n"
-"        "
-msgstr ""
-"\n"
-"          Den första gången du använder Breezy Desktop, krävs en internet "
-"anslutning för att hämta din enhets licens.\n"
-"          \n"
-"          Var inte bekymrad, det finns ingen förpliktelse att donera just "
-"nu. Om du inte har, kommer du att få en försöks licens så du kan bestämma om "
-"Breezy Desktop passar dina behov. \n"
-"          \n"
-"          En gång du har fått en licens, försöks eller annat, kan du använda "
-"Breezy Desktop offline tills funktioner upphör (eller oändligt, om du har "
-"valt livstidsåtkomst).\n"
-"        "
-
-#: src/gtk/no-license.ui:27
-msgid "Try Again"
-msgstr "Försök igen"
-
 #: src/gtk/shortcut-dialog.ui:5
 msgid "Assign Keyboard Shortcut"
 msgstr "Tilldela tangentbordsgenvägar"
@@ -716,25 +564,143 @@ msgstr "Breezy Desktop"
 msgid "Menu"
 msgstr "Meny"
 
-#: src/gtk/window.ui:43
-msgid "Some features expire soon"
-msgstr "Vissa funktioner upphör snart"
-
-#: src/gtk/window.ui:51 src/gtk/window.ui:76
-msgid "View details"
-msgstr "Se detaljer"
-
-#: src/gtk/window.ui:68
-msgid "Productivity features are disabled"
-msgstr "Produktivitets funktioner är inaktiverade"
-
-#: src/gtk/window.ui:95
+#: src/gtk/window.ui:41
 msgid "Force Reset"
 msgstr "Tvinga Reset"
 
-#: src/gtk/window.ui:99
+#: src/gtk/window.ui:45
 msgid "About BreezyDesktop"
 msgstr "Om BreezyDesktop"
+
+#, fuzzy
+#~ msgid "Focused display"
+#~ msgstr "Avstånd till skärmen"
+
+#, fuzzy
+#~ msgid "All displays"
+#~ msgstr "Böjd skärm"
+
+#~ msgid "Paid Tier Status"
+#~ msgstr "Betalningsstatus"
+
+#~ msgid "Feature Availability"
+#~ msgstr "Funktions tillgänglighet"
+
+#~ msgid "In trial"
+#~ msgstr "Provperiod pågår"
+
+#~ msgid "Enabled"
+#~ msgstr "Aktiverad"
+
+#, python-brace-format
+#~ msgid " ({time_remaining} remaining)"
+#~ msgstr " ({time_remaining} kvar)"
+
+#~ msgid "Side-by-side mode (gaming)"
+#~ msgstr "Side-by-side läge (spel)"
+
+#~ msgid "Smooth Follow (gaming)"
+#~ msgstr "Smidig följning (spel)"
+
+#~ msgid "Breezy Desktop (productivity)"
+#~ msgstr "Breezy Desktop (produktivitet)"
+
+#~ msgid "Active"
+#~ msgstr "Aktiv"
+
+#~ msgid "Inactive"
+#~ msgstr "Inaktiv"
+
+#, python-brace-format
+#~ msgid "<b>${amount}</b> USD"
+#~ msgstr "<b>${amount}</b> USD"
+
+#~ msgid " to renew"
+#~ msgstr " att förnya"
+
+#~ msgid " to upgrade"
+#~ msgstr " att uppgradera"
+
+#~ msgid "Paid through next renewal period"
+#~ msgstr "Betald genom nästa förnyelseperiod"
+
+#~ msgid "Gaming"
+#~ msgstr "Spel"
+
+#~ msgid "Productivity"
+#~ msgstr "Produktivitet"
+
+#~ msgid " - renewing monthly"
+#~ msgstr " - förnyar månadsvis"
+
+#~ msgid " - renewing yearly"
+#~ msgstr " - förnyar årligen"
+
+#~ msgid "with lifetime access"
+#~ msgstr "med livstidsåtkomst"
+
+#~ msgid "Monthly"
+#~ msgstr "Månatlig"
+
+#~ msgid "Yearly"
+#~ msgstr "Årlig"
+
+#~ msgid "Lifetime"
+#~ msgstr "Livstid"
+
+#~ msgid "Donate"
+#~ msgstr "Donera"
+
+#~ msgid "Request a token"
+#~ msgstr "Begär en token"
+
+#~ msgid "Verify token"
+#~ msgstr "Verifiera token"
+
+#~ msgid "License Details"
+#~ msgstr "Licensdetaljer"
+
+#~ msgid "No license file was found"
+#~ msgstr "Inget licens fil hittades"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The first time you use Breezy Desktop, an internet connection "
+#~ "is required to retrieve your device's license.\n"
+#~ "          \n"
+#~ "          Don't worry, there's no obligation to donate at this time. If "
+#~ "you haven't, you'll be given a trial license so you can decide if Breezy "
+#~ "Desktop fits your needs. \n"
+#~ "          \n"
+#~ "          Once you obtain a license, trial or otherwise, you can use "
+#~ "Breezy Desktop offline until features expire (or indefinitely, if you've "
+#~ "chosen lifetime access).\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "          Den första gången du använder Breezy Desktop, krävs en internet "
+#~ "anslutning för att hämta din enhets licens.\n"
+#~ "          \n"
+#~ "          Var inte bekymrad, det finns ingen förpliktelse att donera just "
+#~ "nu. Om du inte har, kommer du att få en försöks licens så du kan bestämma "
+#~ "om Breezy Desktop passar dina behov. \n"
+#~ "          \n"
+#~ "          En gång du har fått en licens, försöks eller annat, kan du "
+#~ "använda Breezy Desktop offline tills funktioner upphör (eller oändligt, "
+#~ "om du har valt livstidsåtkomst).\n"
+#~ "        "
+
+#~ msgid "Try Again"
+#~ msgstr "Försök igen"
+
+#~ msgid "Some features expire soon"
+#~ msgstr "Vissa funktioner upphör snart"
+
+#~ msgid "View details"
+#~ msgstr "Se detaljer"
+
+#~ msgid "Productivity features are disabled"
+#~ msgstr "Produktivitets funktioner är inaktiverade"
 
 #~ msgid "Fast SBS mode switching"
 #~ msgstr "Snabb SBS läge växling"

@@ -49,7 +49,6 @@ private:
     double neckSaverHorizontalMultiplier(std::optional<QJsonObject> configJsonOpt);
     double neckSaverVerticalMultiplier(std::optional<QJsonObject> configJsonOpt);
     void pollDriverState();
-    void refreshLicenseUi(const QJsonObject &rootObj);
     void checkEffectLoaded();
     void showStatus(QLabel *label, bool success, const QString &message);
     void setRequestInProgress(std::initializer_list<QObject*> widgets, bool inProgress);

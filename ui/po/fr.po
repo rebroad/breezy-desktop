@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-03 16:04-0700\n"
+"POT-Creation-Date: 2025-12-23 23:16-0500\n"
 "PO-Revision-Date: 2024-08-02 20:54-0700\n"
 "Last-Translator:  <wayne@xronlinux.com>\n"
 "Language-Team: French <traduc@traduc.org>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/connecteddevice.py:29
+#: src/connecteddevice.py:28
 msgid ""
 "Switches your glasses into side-by-side mode and doubles the width of the "
 "display."
@@ -25,46 +25,38 @@ msgstr ""
 "Basculez vos lunettes en mode Side-By-Side (Côte-à-Côte) et doublez la "
 "largeur de l'écran."
 
-#: src/connecteddevice.py:30
+#: src/connecteddevice.py:29
 msgid "This feature is not currently supported for your device."
 msgstr ""
 "Cette fonctionnalité n'est actuellement pas prise en charge par votre "
 "appareil."
 
-#: src/connecteddevice.py:151
+#: src/connecteddevice.py:150
 msgid "Set Focused Display Distance"
 msgstr "Définir la distance de l'écran cible"
 
-#: src/connecteddevice.py:152
+#: src/connecteddevice.py:151
 msgid "Use a closer value so the display zooms in when you look at it."
 msgstr ""
 "Utiliser une valeur plus proche pour que l'écran zoom lorsqu'on le regarde."
 
-#: src/connecteddevice.py:159
+#: src/connecteddevice.py:158
 msgid "Set All Displays Distance"
 msgstr "Définir la distance d'affichage de tous les écrans"
 
-#: src/connecteddevice.py:160
+#: src/connecteddevice.py:159
 msgid "Use a farther value so the displays are zoomed out when you look away."
 msgstr ""
 "Utiliser une valeur plus éloignée afin que les écrans dézooment lorsqu'on ne "
 "les regarde plus."
 
-#: src/connecteddevice.py:283
+#: src/connecteddevice.py:277
 msgid ""
 "Unable to add virtual displays on this machine. Wayland, xdg-desktop-portal, "
 "and the pipewire GStreamer plugin are required."
 msgstr ""
 "Impossible d'ajouter des écrans virtuels sur cet appareil. Wayland et xdg-"
 "desktop-portal sont nécessaires."
-
-#: src/connecteddevice.py:317
-msgid "Focused display"
-msgstr "Ecran cible"
-
-#: src/connecteddevice.py:323
-msgid "All displays"
-msgstr "Tous les écrans"
 
 #: src/displaydistancedialogcontent.py:41
 msgid "closer"
@@ -78,99 +70,9 @@ msgstr "Plein écran"
 msgid "farther"
 msgstr "Plus éloigné"
 
-#: src/licensedialogcontent.py:63
-msgid "Paid Tier Status"
-msgstr "Statut de l'abonnement payant"
-
-#: src/licensedialogcontent.py:71
-msgid "Feature Availability"
-msgstr "Disponibilité des fonctionnalités"
-
-#: src/licensefeaturerow.py:15 src/shortcutdialog.py:104
+#: src/shortcutdialog.py:104
 msgid "Disabled"
 msgstr "Désactivé"
-
-#: src/licensefeaturerow.py:18
-msgid "In trial"
-msgstr "En essai"
-
-#: src/licensefeaturerow.py:18
-msgid "Enabled"
-msgstr "Activé"
-
-#: src/licensefeaturerow.py:24 src/licensetierrow.py:30
-#, python-brace-format
-msgid " ({time_remaining} remaining)"
-msgstr " ({time_remaining} restant)"
-
-#: src/licensefeaturerow.py:30
-msgid "Side-by-side mode (gaming)"
-msgstr "Mode SBS (jeu)"
-
-#: src/licensefeaturerow.py:31
-msgid "Smooth Follow (gaming)"
-msgstr "Suivi fluide (jeu)"
-
-#: src/licensefeaturerow.py:32
-msgid "Breezy Desktop (productivity)"
-msgstr "Breezy Desktop (productivité)"
-
-#: src/licensetierrow.py:24
-msgid "Active"
-msgstr "Actif"
-
-#: src/licensetierrow.py:24
-msgid "Inactive"
-msgstr "Inactif"
-
-#: src/licensetierrow.py:41
-#, python-brace-format
-msgid "<b>${amount}</b> USD"
-msgstr "${amount} USD"
-
-#: src/licensetierrow.py:43
-msgid " to renew"
-msgstr " à renouveler"
-
-#: src/licensetierrow.py:45
-msgid " to upgrade"
-msgstr " à mettre à niveau"
-
-#: src/licensetierrow.py:47
-msgid "Paid through next renewal period"
-msgstr "Payé jusqu'à la prochaine période de renouvellement"
-
-#: src/licensetierrow.py:56
-msgid "Gaming"
-msgstr "Jeu"
-
-#: src/licensetierrow.py:57
-msgid "Productivity"
-msgstr "Productivité"
-
-#: src/licensetierrow.py:63
-msgid " - renewing monthly"
-msgstr " - renouvellement mensuel"
-
-#: src/licensetierrow.py:64
-msgid " - renewing yearly"
-msgstr " - renouvellement annuel"
-
-#: src/licensetierrow.py:65
-msgid "with lifetime access"
-msgstr "avec accès à vie"
-
-#: src/licensetierrow.py:72
-msgid "Monthly"
-msgstr "Mensuel"
-
-#: src/licensetierrow.py:73
-msgid "Yearly"
-msgstr "Annuel"
-
-#: src/licensetierrow.py:74
-msgid "Lifetime"
-msgstr "À vie"
 
 #: src/time.py:14
 msgid "less than an hour"
@@ -608,22 +510,6 @@ msgstr ""
 "exécuter à nouveau le script de configuration. Signalez ce problème s'il "
 "persiste."
 
-#: src/gtk/license-dialog-content.ui:15
-msgid "Donate"
-msgstr "Faire un don"
-
-#: src/gtk/license-dialog-content.ui:31
-msgid "Request a token"
-msgstr "Demander un jeton d'authentification"
-
-#: src/gtk/license-dialog-content.ui:39
-msgid "Verify token"
-msgstr "Vérifier le jeton d'authentification"
-
-#: src/gtk/license-dialog.ui:5 src/gtk/window.ui:91
-msgid "License Details"
-msgstr "Détails de la licence"
-
 #: src/gtk/no-device.ui:13
 msgid "No device connected"
 msgstr "Aucun appareil connecté"
@@ -681,42 +567,6 @@ msgstr ""
 "déconnecter et vous reconnecter pour l'utiliser. Sinon, veuillez suivre les "
 "instructions d'installation de Breezy GNOME."
 
-#: src/gtk/no-license.ui:13
-msgid "No license file was found"
-msgstr "Aucun fichier de licence trouvé"
-
-#: src/gtk/no-license.ui:14
-msgid ""
-"\n"
-"          The first time you use Breezy Desktop, an internet connection is "
-"required to retrieve your device's license.\n"
-"          \n"
-"          Don't worry, there's no obligation to donate at this time. If you "
-"haven't, you'll be given a trial license so you can decide if Breezy Desktop "
-"fits your needs. \n"
-"          \n"
-"          Once you obtain a license, trial or otherwise, you can use Breezy "
-"Desktop offline until features expire (or indefinitely, if you've chosen "
-"lifetime access).\n"
-"        "
-msgstr ""
-"\n"
-" La première fois que vous utilisez Breezy Desktop, une connexion Internet "
-"est requise pour récupérer la licence de votre appareil.\n"
-" \n"
-" Ne vous inquiétez pas, vous n'êtes pas obligé de faire un don à ce stade. "
-"Si vous ne le faites pas, vous obtiendrez une licence d'essai pour vous "
-"permettre de décider si Breezy Desktop répond à vos besoins.\n"
-" \n"
-" Une fois que vous avez obtenu une licence, d'essai ou autre, vous pouvez "
-"utiliser Breezy Desktop hors ligne jusqu'à l'expiration des fonctionnalités "
-"(ou indéfiniment, si vous avez choisi l'accès à vie).\n"
-" "
-
-#: src/gtk/no-license.ui:27
-msgid "Try Again"
-msgstr "Réessayer"
-
 #: src/gtk/shortcut-dialog.ui:5
 msgid "Assign Keyboard Shortcut"
 msgstr "Attribuer un raccourci clavier"
@@ -734,25 +584,141 @@ msgstr "Breezy Desktop"
 msgid "Menu"
 msgstr "Menu"
 
-#: src/gtk/window.ui:43
-msgid "Some features expire soon"
-msgstr "Certaines fonctionnalités expirent bientôt"
-
-#: src/gtk/window.ui:51 src/gtk/window.ui:76
-msgid "View details"
-msgstr "Afficher les détails"
-
-#: src/gtk/window.ui:68
-msgid "Productivity features are disabled"
-msgstr "Les fonctionnalités de productivité sont désactivées"
-
-#: src/gtk/window.ui:95
+#: src/gtk/window.ui:41
 msgid "Force Reset"
 msgstr "Réinitialiser"
 
-#: src/gtk/window.ui:99
+#: src/gtk/window.ui:45
 msgid "About BreezyDesktop"
 msgstr "À propos de BreezyDesktop"
+
+#~ msgid "Focused display"
+#~ msgstr "Ecran cible"
+
+#~ msgid "All displays"
+#~ msgstr "Tous les écrans"
+
+#~ msgid "Paid Tier Status"
+#~ msgstr "Statut de l'abonnement payant"
+
+#~ msgid "Feature Availability"
+#~ msgstr "Disponibilité des fonctionnalités"
+
+#~ msgid "In trial"
+#~ msgstr "En essai"
+
+#~ msgid "Enabled"
+#~ msgstr "Activé"
+
+#, python-brace-format
+#~ msgid " ({time_remaining} remaining)"
+#~ msgstr " ({time_remaining} restant)"
+
+#~ msgid "Side-by-side mode (gaming)"
+#~ msgstr "Mode SBS (jeu)"
+
+#~ msgid "Smooth Follow (gaming)"
+#~ msgstr "Suivi fluide (jeu)"
+
+#~ msgid "Breezy Desktop (productivity)"
+#~ msgstr "Breezy Desktop (productivité)"
+
+#~ msgid "Active"
+#~ msgstr "Actif"
+
+#~ msgid "Inactive"
+#~ msgstr "Inactif"
+
+#, python-brace-format
+#~ msgid "<b>${amount}</b> USD"
+#~ msgstr "${amount} USD"
+
+#~ msgid " to renew"
+#~ msgstr " à renouveler"
+
+#~ msgid " to upgrade"
+#~ msgstr " à mettre à niveau"
+
+#~ msgid "Paid through next renewal period"
+#~ msgstr "Payé jusqu'à la prochaine période de renouvellement"
+
+#~ msgid "Gaming"
+#~ msgstr "Jeu"
+
+#~ msgid "Productivity"
+#~ msgstr "Productivité"
+
+#~ msgid " - renewing monthly"
+#~ msgstr " - renouvellement mensuel"
+
+#~ msgid " - renewing yearly"
+#~ msgstr " - renouvellement annuel"
+
+#~ msgid "with lifetime access"
+#~ msgstr "avec accès à vie"
+
+#~ msgid "Monthly"
+#~ msgstr "Mensuel"
+
+#~ msgid "Yearly"
+#~ msgstr "Annuel"
+
+#~ msgid "Lifetime"
+#~ msgstr "À vie"
+
+#~ msgid "Donate"
+#~ msgstr "Faire un don"
+
+#~ msgid "Request a token"
+#~ msgstr "Demander un jeton d'authentification"
+
+#~ msgid "Verify token"
+#~ msgstr "Vérifier le jeton d'authentification"
+
+#~ msgid "License Details"
+#~ msgstr "Détails de la licence"
+
+#~ msgid "No license file was found"
+#~ msgstr "Aucun fichier de licence trouvé"
+
+#~ msgid ""
+#~ "\n"
+#~ "          The first time you use Breezy Desktop, an internet connection "
+#~ "is required to retrieve your device's license.\n"
+#~ "          \n"
+#~ "          Don't worry, there's no obligation to donate at this time. If "
+#~ "you haven't, you'll be given a trial license so you can decide if Breezy "
+#~ "Desktop fits your needs. \n"
+#~ "          \n"
+#~ "          Once you obtain a license, trial or otherwise, you can use "
+#~ "Breezy Desktop offline until features expire (or indefinitely, if you've "
+#~ "chosen lifetime access).\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ " La première fois que vous utilisez Breezy Desktop, une connexion "
+#~ "Internet est requise pour récupérer la licence de votre appareil.\n"
+#~ " \n"
+#~ " Ne vous inquiétez pas, vous n'êtes pas obligé de faire un don à ce "
+#~ "stade. Si vous ne le faites pas, vous obtiendrez une licence d'essai pour "
+#~ "vous permettre de décider si Breezy Desktop répond à vos besoins.\n"
+#~ " \n"
+#~ " Une fois que vous avez obtenu une licence, d'essai ou autre, vous pouvez "
+#~ "utiliser Breezy Desktop hors ligne jusqu'à l'expiration des "
+#~ "fonctionnalités (ou indéfiniment, si vous avez choisi l'accès à vie).\n"
+#~ " "
+
+#~ msgid "Try Again"
+#~ msgstr "Réessayer"
+
+#~ msgid "Some features expire soon"
+#~ msgstr "Certaines fonctionnalités expirent bientôt"
+
+#~ msgid "View details"
+#~ msgstr "Afficher les détails"
+
+#~ msgid "Productivity features are disabled"
+#~ msgstr "Les fonctionnalités de productivité sont désactivées"
 
 #~ msgid ""
 #~ "Unable to add virtual displays on this machine. Wayland and xdg-desktop-"
