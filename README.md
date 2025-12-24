@@ -8,7 +8,7 @@
 
 ## What is this?
 
-This repo contains a collection of tools to enable virtual desktop environments for gaming and productivity on Linux using [supported XR glasses](https://github.com/wheaney/XRLinuxDriver#supported-devices).
+This repo contains a collection of tools to enable virtual desktop environments for gaming and productivity on Linux using [supported XR glasses](https://github.com/rebroad/XRLinuxDriver#supported-devices).
 
 There are two installations available. **Note: Don't manually install either of these if you're running the Decky plugin on the same machine, as they invalidate each other's installations. This is only temporary.**
 * [Breezy Desktop](#breezy-desktop) for KDE Plasma or GNOME desktop environments on Linux.
@@ -27,7 +27,7 @@ For the best performance, ensure you have the latest graphics drivers installed 
 Breezy Desktop is only compatible with KDE Plasma 6.
 
 **IMPORTANT** - Please read carefully through this list before you get started
-* **If you're installing on an immutable distro other than SteamOS**, you'll need to follow the [Distrobox setup](https://github.com/wheaney/breezy-desktop/wiki/Breezy-KDE-Distrobox-setup).
+* **If you're installing on an immutable distro other than SteamOS**, you'll need to follow the [Distrobox setup](https://github.com/rebroad/breezy-desktop/wiki/Breezy-KDE-Distrobox-setup).
 * **If this is the first time you're using your glasses with KDE**, you'll be presented with some options around how to extend your desktop that aren't very clear. Choose the "No action" option to leave the glasses' display independent.
 * **If you're running KDE on `X11`**, you won't be able to launch virtual displays. If you're not on SteamOS, look for Wayland options on the login screen.
 * **Steam Deck users** note the extra step in the setup instructions for switching to `Wayland` if you want virtual display features.
@@ -37,8 +37,8 @@ Breezy Desktop is only compatible with KDE Plasma 6.
   * To prevent a magnified cursor from showing in the wrong place: in `System Settings` / `Accessibility`, disable the `Shake Cursor` effect.
 
 To setup Breezy on KDE, with your glasses unplugged:
-1. Make sure your glasses are in the [supported devices list](https://github.com/wheaney/XRLinuxDriver#supported-devices) and are on the latest firmware.
-2. Download the [Breezy KWin setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_kwin_setup)
+1. Make sure your glasses are in the [supported devices list](https://github.com/rebroad/XRLinuxDriver#supported-devices) and are on the latest firmware.
+2. Download the [Breezy KWin setup script](https://github.com/rebroad/breezy-desktop/releases/latest/download/breezy_kwin_setup)
 3. Set the execute flag: `chmod +x ~/Downloads/breezy_kwin_setup`
 4. Run the setup script: `~/Downloads/breezy_kwin_setup`
 5. If you're on SteamOS and want to use virtual displays, use the `Enable Breezy Wayland` desktop script
@@ -55,7 +55,7 @@ Make sure your glasses are extending your workspace and not just mirroring your 
 
 **Note: an [AUR installation](#gnome-arch-linux-setup) is also available for Arch users**
 
-1. Download the Breezy GNOME [setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_gnome_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_gnome_setup`)
+1. Download the Breezy GNOME [setup script](https://github.com/rebroad/breezy-desktop/releases/latest/download/breezy_gnome_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_gnome_setup`)
 2. Run the setup script: `~/Downloads/breezy_gnome_setup`
 3. Log out and back in, then proceed to [usage](#breezy-gnome-usage).
 
@@ -70,7 +70,7 @@ Breezy GNOME is in AUR (but not pacman, yet). To install, run these commands fro
 
 #### GNOME Widescreen (Legacy) Setup
 
-1. Download the Breezy GNOME [setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_gnome_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_gnome_setup`)
+1. Download the Breezy GNOME [setup script](https://github.com/rebroad/breezy-desktop/releases/latest/download/breezy_gnome_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_gnome_setup`)
 2. Run the setup script: `~/Downloads/breezy_gnome_setup --tag legacy`
 3. Log out and back in, then proceed to [usage](#breezy-gnome-usage).
 
@@ -115,12 +115,12 @@ You may still opt to do a manual installation using the instructions below if yo
 
 #### Manual installation
 
-1. Download the [setup script](https://github.com/wheaney/breezy-desktop/releases/latest/download/breezy_vulkan_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_vulkan_setup`)
+1. Download the [setup script](https://github.com/rebroad/breezy-desktop/releases/latest/download/breezy_vulkan_setup) and set the execute flag (e.g. from the terminal: `chmod +x ~/Downloads/breezy_vulkan_setup`)
 2. Run the setup script as root (e.g. `sudo ~/Downloads/breezy_vulkan_setup`)
 3. If you're not on Steam Deck, you'll need to set the `ENABLE_VKBASALT` environment variable to `1`. You'll either need to set this globally to enable it for all games, or set it as a launch option for individual games (e.g. in Steam's Launch Options field `ENABLE_VKBASALT=1 %command%`).
 
 ### Supported Devices
-See [XRLinuxDriver's supported devices](https://github.com/wheaney/XRLinuxDriver#supported-devices).
+See [XRLinuxDriver's supported devices](https://github.com/rebroad/XRLinuxDriver#supported-devices).
 
 ### Usage
 

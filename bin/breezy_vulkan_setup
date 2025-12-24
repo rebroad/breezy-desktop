@@ -25,14 +25,14 @@ tmp_dir=$(mktemp -d -t breezy-vulkan-XXXXXXXXXX)
 pushd $tmp_dir > /dev/null
 echo "Created temp directory: ${tmp_dir}"
 
-binary_download_url="https://github.com/wheaney/breezy-desktop/releases/latest/download/breezyVulkan-$ARCH.tar.gz"
+binary_download_url="https://github.com/rebroad/breezy-desktop/releases/latest/download/breezyVulkan-$ARCH.tar.gz"
 if [ "$1" = "-v" ]
 then
   metrics_version="$2"
   binary_path_arg="$3"
 elif [ "$1" = "--tag" ] && [ -n "$2" ]
 then
-  binary_download_url="https://github.com/wheaney/breezy-desktop/releases/download/$2/breezyVulkan-$ARCH.tar.gz"
+  binary_download_url="https://github.com/rebroad/breezy-desktop/releases/download/$2/breezyVulkan-$ARCH.tar.gz"
 else
   binary_path_arg="$1"
 fi

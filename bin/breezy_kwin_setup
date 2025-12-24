@@ -52,7 +52,7 @@ if [ -f /etc/os-release ]; then
   fi
 fi
 FILE_NAME="breezyKWin-$ARCH.tar.gz"
-LATEST_RELEASE=$(curl -s "https://api.github.com/repos/wheaney/breezy-desktop/releases/latest")
+LATEST_RELEASE=$(curl -s "https://api.github.com/repos/rebroad/breezy-desktop/releases/latest")
 echo "Performing setup for KWin ($ARCH)"
 
 start_dir=$(pwd)
@@ -62,14 +62,14 @@ tmp_dir=$(mktemp -d -t breezy-kwin-XXXXXXXXXX)
 pushd $tmp_dir > /dev/null
 echo "Created temp directory: ${tmp_dir}"
 
-binary_download_url="https://github.com/wheaney/breezy-desktop/releases/latest/download/$FILE_NAME"
+binary_download_url="https://github.com/rebroad/breezy-desktop/releases/latest/download/$FILE_NAME"
 if [ "$1" = "-v" ]
 then
   metrics_version="$2"
   binary_path_arg="$3"
 elif [ "$1" = "--tag" ] && [ -n "$2" ]
 then
-  binary_download_url="https://github.com/wheaney/breezy-desktop/releases/download/$2/$FILE_NAME"
+  binary_download_url="https://github.com/rebroad/breezy-desktop/releases/download/$2/$FILE_NAME"
 else
   binary_path_arg="$1"
 fi
@@ -95,22 +95,22 @@ then
     if [ -n "$requested_tag" ]; then
       tag="$requested_tag"
     else
-      tag=$(curl -s "https://api.github.com/repos/wheaney/breezy-desktop/releases/latest" \
+      tag=$(curl -s "https://api.github.com/repos/rebroad/breezy-desktop/releases/latest" \
             | grep -m1 '"tag_name":' \
             | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
     fi
 
     if [ -z "$tag" ]; then
-      echo "Failed to determine latest tag for wheaney/breezy-desktop" 1>&2
+      echo "Failed to determine latest tag for rebroad/breezy-desktop" 1>&2
       exit 1
     fi
 
     if [ -z "${DEV_BUILD+x}" ]; then
-      echo "Cloning wheaney/breezy-desktop (tag: ${tag})"
-      if git clone --depth 1 --branch "$tag" "https://github.com/wheaney/breezy-desktop.git" breezy-desktop 2>/dev/null; then
+      echo "Cloning rebroad/breezy-desktop (tag: ${tag})"
+      if git clone --depth 1 --branch "$tag" "https://github.com/rebroad/breezy-desktop.git" breezy-desktop 2>/dev/null; then
         pushd breezy-desktop > /dev/null
       else
-        git clone "https://github.com/wheaney/breezy-desktop.git" breezy-desktop
+        git clone "https://github.com/rebroad/breezy-desktop.git" breezy-desktop
         pushd breezy-desktop > /dev/null
         git checkout "$tag"
       fi
