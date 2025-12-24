@@ -28,5 +28,10 @@ IMUData read_latest_imu(IMUReader *reader);
 // Shader loading functions (in shader_loader.c)
 int load_sombrero_shaders(RenderThread *thread, const char *frag_shader_path);
 
+// OpenGL context functions (in opengl_context.c)
+int init_opengl_context(RenderThread *thread);
+void cleanup_opengl_context(RenderThread *thread);
+void swap_buffers(RenderThread *thread);
+
 #endif
 

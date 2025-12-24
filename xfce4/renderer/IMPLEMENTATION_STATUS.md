@@ -82,12 +82,16 @@
 
 ### Phase 1: Virtual Connector (Requires Xorg Changes)
 1. Implement virtual XR connector in modesetting driver
-2. Test connector creation via xrandr:
+   - XR-Manager output for control (must appear in xrandr)
+   - CREATE_XR_OUTPUT property to create XR-0, XR-1, etc.
+2. Test connector creation via xrandr (manual testing):
    ```bash
    xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"
+   xrandr --output XR-0 --auto
    ```
 3. Verify connector appears in `xrandr --listoutputs`
 4. Verify framebuffer is accessible via DRM
+5. **Note**: In production, breezy-desktop will create XR-0 automatically after calibration
 
 ### Phase 2: Capture Testing
 1. Build renderer: `cd xfce4/renderer && make`
@@ -106,11 +110,15 @@
 
 ### Phase 4: Integration Testing
 1. Connect glasses → XRLinuxDriver detects
-2. Calibration period completes
-3. Physical display marked non-desktop
-4. Virtual connector XR-0 appears
-5. Renderer captures from XR-0
-6. 3D rendering to physical display works
+2. Calibration period completes (15 seconds, monitored by breezy-desktop)
+3. **breezy-desktop detects calibration completion**
+4. **breezy-desktop requests XR-0 creation** via XR-Manager
+5. Physical display marked non-desktop (via EDID or RandR property)
+6. Virtual connector XR-0 appears in xrandr
+7. **breezy-desktop starts renderer** (spawns breezy_xfce4_renderer process)
+8. Renderer captures from XR-0
+9. 3D rendering to physical display works
+10. **Important**: Renderer must NOT start before calibration completes (potential drift otherwise)
 
 ## When You Need My Involvement
 
@@ -138,14 +146,61 @@
 - Any performance issues?
 - Any visual artifacts?
 
+## Integration Notes
+
+### breezy-desktop Integration Requirements
+
+The renderer is **NOT** a standalone tool - it must be integrated with breezy-desktop:
+
+**Who does what:**
+- **XRLinuxDriver**: Provides IMU data and calibration state (does NOT create displays)
+- **breezy-desktop**: Creates XR-0 and starts renderer (after calibration completes)
+- **breezy_xfce4_renderer**: Captures from XR-0 and renders 3D content
+
+**Integration steps:**
+
+1. **Calibration Detection**: breezy-desktop must monitor XRLinuxDriver state to detect when calibration completes
+   - Check calibration state in shared memory or via IPC
+   - Wait for calibration period to finish (15 seconds for XREAL devices)
+
+2. **Virtual Connector Creation**: After calibration, breezy-desktop calls:
+   ```bash
+   xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"
+   xrandr --output XR-0 --auto
+   ```
+   - Requires XR-Manager to exist (virtual connector implementation in Xorg modesetting driver)
+
+3. **Renderer Startup**: breezy-desktop spawns renderer process:
+   ```python
+   renderer_process = subprocess.Popen(
+       ['breezy_xfce4_renderer', '1920', '1080', '60', '90'],
+       start_new_session=True
+   )
+   ```
+
+4. **Error Handling**: breezy-desktop must monitor renderer process and restart if it crashes
+
+5. **Shutdown**: When breezy-desktop stops or glasses disconnect:
+   - Stop renderer process
+   - Optionally delete XR-0 virtual connector
+
+**Implementation Location**: 
+- `ui/src/virtualdisplaymanager.py` - Already spawns virtual display processes (could be extended)
+- Or new XFCE4-specific integration code
+
 ## Files Created/Modified
 
 ### New Files:
-- `xfce4/renderer/breezy_xfce4_renderer.c` - Main renderer
+- `xfce4/renderer/breezy_xfce4_renderer.c` - Main renderer (standalone binary)
 - `xfce4/renderer/breezy_xfce4_renderer.h` - Header
 - `xfce4/renderer/drm_capture.c` - DRM/KMS capture
+- `xfce4/renderer/imu_reader.c` - IMU data reader
+- `xfce4/renderer/shader_loader.c` - Shader loading
+- `xfce4/renderer/opengl_context.c` - OpenGL context creation
 - `xfce4/renderer/Makefile` - Build system
 - `xfce4/renderer/IMPLEMENTATION_STATUS.md` - This file
+- `xfce4/renderer/TESTING_GUIDE.md` - Testing instructions
+- `xfce4/renderer/PIPEWIRE_VS_DRM.md` - Architecture comparison
 
 ### Modified Files:
 - `BREEZY_X11_TECHNICAL.md` - Updated architecture docs

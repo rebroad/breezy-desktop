@@ -359,7 +359,7 @@ static void *render_thread_func(void *arg) {
         render_frame(thread, &thread->renderer->frame_buffer, &imu);
         
         // Swap buffers (vsync)
-        // TODO: Use EGL swap_buffers with vsync
+        swap_buffers(thread);
         
         // Sleep until next frame
         struct timespec now;
@@ -389,6 +389,36 @@ static void *render_thread_func(void *arg) {
     return NULL;
 }
 
+static int create_fullscreen_quad(GLuint *vbo, GLuint *vao) {
+    // Fullscreen quad vertices (NDC coordinates -1 to 1)
+    float vertices[] = {
+        // Positions (x, y)    // Texture coordinates (u, v)
+        -1.0f, -1.0f,          0.0f, 0.0f,  // Bottom-left
+         1.0f, -1.0f,          1.0f, 0.0f,  // Bottom-right
+        -1.0f,  1.0f,          0.0f, 1.0f,  // Top-left
+         1.0f,  1.0f,          1.0f, 1.0f   // Top-right
+    };
+    
+    glGenVertexArrays(1, vao);
+    glGenBuffers(1, vbo);
+    
+    glBindVertexArray(*vao);
+    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // Position attribute (location 0)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    
+    // Texture coordinate attribute (location 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    glBindVertexArray(0);
+    
+    return 0;
+}
+
 static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     memset(thread, 0, sizeof(*thread));
     thread->renderer = renderer;
@@ -406,19 +436,36 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->vbo = 0;
     thread->vao = 0;
     
-    // TODO: Create OpenGL context on AR glasses display
-    // 1. Open X display
-    // 2. Create GLX context or EGL context
-    // 3. Make current
-    
-    // TODO: Load and compile GLSL shaders from Sombrero.frag
-    if (load_shaders(thread) != 0) {
-        fprintf(stderr, "Failed to load shaders\n");
+    // Create OpenGL context on AR glasses display
+    if (init_opengl_context(thread) != 0) {
+        fprintf(stderr, "[Render] Failed to create OpenGL context\n");
         return -1;
     }
     
-    // TODO: Create fullscreen quad VBO/VAO
+    // Load and compile GLSL shaders from Sombrero.frag
+    if (load_shaders(thread) != 0) {
+        fprintf(stderr, "[Render] Failed to load shaders\n");
+        cleanup_opengl_context(thread);
+        return -1;
+    }
     
+    // Create fullscreen quad VBO/VAO
+    if (create_fullscreen_quad(&thread->vbo, &thread->vao) != 0) {
+        fprintf(stderr, "[Render] Failed to create fullscreen quad\n");
+        cleanup_opengl_context(thread);
+        return -1;
+    }
+    
+    // Create texture for captured frames
+    glGenTextures(1, &thread->frame_texture);
+    glBindTexture(GL_TEXTURE_2D, thread->frame_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    printf("[Render] Render thread initialized successfully\n");
     return 0;
 }
 
@@ -431,12 +478,30 @@ static void cleanup_render_thread(RenderThread *thread) {
     // Cleanup OpenGL resources
     if (thread->shader_program) {
         glDeleteProgram(thread->shader_program);
+        thread->shader_program = 0;
+    }
+    if (thread->vertex_shader) {
+        glDeleteShader(thread->vertex_shader);
+        thread->vertex_shader = 0;
+    }
+    if (thread->fragment_shader) {
+        glDeleteShader(thread->fragment_shader);
+        thread->fragment_shader = 0;
     }
     if (thread->frame_texture) {
         glDeleteTextures(1, &thread->frame_texture);
+        thread->frame_texture = 0;
+    }
+    if (thread->vbo) {
+        glDeleteBuffers(1, &thread->vbo);
+        thread->vbo = 0;
+    }
+    if (thread->vao) {
+        glDeleteVertexArrays(1, &thread->vao);
+        thread->vao = 0;
     }
     
-    // TODO: Destroy OpenGL context
+    cleanup_opengl_context(thread);
 }
 
 static int load_shaders(RenderThread *thread) {
