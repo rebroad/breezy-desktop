@@ -11,6 +11,7 @@
  * - Direct OpenGL rendering (no Qt/abstractions)
  */
 
+#define _POSIX_C_SOURCE 200809L  // for usleep
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -32,7 +33,9 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#include <GL/glext.h>
 #include <GL/glx.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -45,11 +48,10 @@
 #include <unistd.h>
 
 #include "breezy_xfce4_renderer.h"
+#include "logging.h"
 
 // Forward declarations
 typedef struct Renderer Renderer;
-typedef struct CaptureThread CaptureThread;
-typedef struct RenderThread RenderThread;
 typedef struct FrameBuffer FrameBuffer;
 
 // Frame buffer structure (lock-free ring buffer for maximum performance)
@@ -70,97 +72,19 @@ struct FrameBuffer {
     uint32_t frame_count;
 };
 
-// IMU data structure
-// Device configuration from shared memory
-typedef struct {
-    float look_ahead_cfg[4];
-    uint32_t display_resolution[2];
-    float display_fov;
-    float lens_distance_ratio;
-    bool sbs_enabled;
-    bool custom_banner_enabled;
-    bool smooth_follow_enabled;
-    float smooth_follow_origin[16];  // 4x4 matrix
-    bool valid;
-} DeviceConfig;
+// DeviceConfig, IMUData, IMUReader, CaptureThread, RenderThread are all defined in breezy_xfce4_renderer.h
 
-typedef struct {
-    float pose_orientation[16];  // 4x4 matrix: rows 0-2 are quaternions (t0, t1, t2), row 3 is timestamps
-    float position[3];            // x, y, z
-    uint64_t timestamp_ms;
-    bool valid;
-} IMUData;
+// CaptureThread and RenderThread are fully defined in breezy_xfce4_renderer.h
+// Helper macros to cast void* fields to real types for use in this file
+#define RT_X_DISPLAY(rt) ((Display*)(rt)->x_display)
+#define RT_GLX_CONTEXT(rt) ((GLXContext)(rt)->glx_context)
+#define RT_EGL_DISPLAY(rt) ((EGLDisplay)(rt)->egl_display)
+#define RT_EGL_SURFACE(rt) ((EGLSurface)(rt)->egl_surface)
+#define RT_EGL_CONTEXT(rt) ((EGLContext)(rt)->egl_context)
+#define RT_EGL_IMAGE(rt) ((EGLImageKHR)(rt)->frame_egl_image)
 
-// IMU reader
-typedef struct {
-    int shm_fd;
-    void *shm_ptr;
-    size_t shm_size;
-    IMUData latest;
-    pthread_mutex_t lock;
-} IMUReader;
-
-// Capture thread
-struct CaptureThread {
-    pthread_t thread;
-    Renderer *renderer;
-    bool running;
-    bool stop_requested;
-    
-    // Virtual XR connector properties
-    const char *connector_name;  // e.g., "XR-0"
-    uint32_t width;
-    uint32_t height;
-    uint32_t framerate;
-    
-    // DRM/KMS capture
-    int drm_fd;  // -1 if not initialized
-    uint32_t connector_id;
-    uint32_t crtc_id;
-    uint32_t fb_id;  // Current framebuffer ID
-    drmModeFBPtr fb_info;  // Current framebuffer info
-    uint32_t fb_handle;  // Framebuffer handle for DMA-BUF export
-};
-
-// Render thread
-struct RenderThread {
-    pthread_t thread;
-    Renderer *renderer;
-    bool running;
-    bool stop_requested;
-    bool thread_started;  // Track if thread was successfully started (for safe cleanup)
-    
-    uint32_t refresh_rate;  // AR glasses refresh rate (60/72/90/120 Hz)
-    
-    // OpenGL context
-    Display *x_display;  // NULL if not initialized
-    Window x_window;
-    GLXContext glx_context;  // NULL if not initialized
-    EGLDisplay egl_display;  // EGL_NO_DISPLAY if not initialized
-    EGLSurface egl_surface;  // EGL_NO_SURFACE if not initialized
-    EGLContext egl_context;  // EGL_NO_CONTEXT if not initialized
-    
-    // Shader program (from Sombrero.frag)
-    GLuint shader_program;  // 0 if not initialized
-    GLuint vertex_shader;   // 0 if not initialized
-    GLuint fragment_shader; // 0 if not initialized
-    
-    // Texture for captured frames (DMA-BUF imported)
-    GLuint frame_texture;   // 0 if not initialized
-    EGLImageKHR frame_egl_image;  // EGL_NO_IMAGE_KHR if not initialized
-    
-    // DMA-BUF data shared with capture thread (protected by dmabuf_mutex)
-    pthread_mutex_t dmabuf_mutex;  // Protects DMA-BUF fields below
-    int current_dmabuf_fd;  // -1 if not initialized
-    uint32_t current_fb_id;  // Track framebuffer changes
-    uint32_t current_format;  // DRM format of current framebuffer
-    uint32_t current_stride;  // Stride of current framebuffer
-    uint32_t current_modifier;  // Modifier of current framebuffer
-    
-    // VBO/VAO for fullscreen quad
-    GLuint vbo;  // 0 if not initialized
-    GLuint vao;  // 0 if not initialized
-};
+// Accessor macros for void* EGL fields  
+#define SET_EGL_IMAGE(rt, val) ((rt)->frame_egl_image = (void*)(val))
 
 // Main renderer structure
 struct Renderer {
@@ -175,15 +99,17 @@ struct Renderer {
     uint32_t virtual_framerate;
     uint32_t render_refresh_rate;
     
+    // Device configuration (cached, updated periodically)
+    DeviceConfig device_config;
+    uint64_t last_config_update_ms;
+    
     // Control
     bool running;
     pthread_mutex_t control_lock;
 };
 
 // Function prototypes
-static int init_imu_reader(IMUReader *reader);
-static void cleanup_imu_reader(IMUReader *reader);
-static IMUData read_latest_imu(IMUReader *reader);
+// IMU reader functions are declared in breezy_xfce4_renderer.h (not static)
 
 static void *capture_thread_func(void *arg);
 static int init_capture_thread(CaptureThread *thread, Renderer *renderer);
@@ -496,7 +422,7 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->vertex_shader = 0;
     thread->fragment_shader = 0;
     thread->frame_texture = 0;
-    thread->frame_egl_image = EGL_NO_IMAGE_KHR;
+    SET_EGL_IMAGE(thread, EGL_NO_IMAGE_KHR);
     thread->current_dmabuf_fd = -1;
     thread->current_fb_id = 0;
     thread->current_format = 0;

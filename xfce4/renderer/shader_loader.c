@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 
 static char *read_file_contents(const char *path, size_t *out_size) {
     FILE *f = fopen(path, "rb");

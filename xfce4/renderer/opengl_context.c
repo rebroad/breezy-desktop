@@ -227,7 +227,7 @@ static bool check_dmabuf_extensions(EGLDisplay egl_display) {
 }
 
 // Import DMA-BUF file descriptor as OpenGL texture (zero-copy)
-GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t width, uint32_t height, uint32_t format, uint32_t stride, uint32_t modifier) {
+GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t width, uint32_t height, uint32_t format, uint32_t stride, uint64_t modifier) {
     // For now, we need EGL display - if using GLX, we'd need to create EGL context too
     // For initial implementation, assume we're using GLX but can create EGL context if needed
     
@@ -333,7 +333,7 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
     // Cleanup old EGL image if it exists
     if (thread->frame_egl_image != EGL_NO_IMAGE_KHR) {
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, EGL_NO_IMAGE_KHR);
-        eglDestroyImageKHR(egl_display, thread->frame_egl_image, NULL);
+        eglDestroyImageKHR(egl_display, thread->frame_egl_image);
     }
     
     // Bind EGL image to texture (zero-copy!)
@@ -342,7 +342,7 @@ GLuint import_dmabuf_as_texture(RenderThread *thread, int dmabuf_fd, uint32_t wi
     GLenum gl_error = glGetError();
     if (gl_error != GL_NO_ERROR) {
         log_error("Error binding EGL image to texture: 0x%x - DMA-BUF import failed!\n", gl_error);
-        eglDestroyImageKHR(egl_display, egl_image, NULL);
+        eglDestroyImageKHR(egl_display, egl_image);
         return 0;
     }
     
@@ -370,7 +370,7 @@ void cleanup_dmabuf_texture(RenderThread *thread) {
         PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)
             eglGetProcAddress("eglDestroyImageKHR");
         if (eglDestroyImageKHR) {
-            eglDestroyImageKHR(egl_display, thread->frame_egl_image, NULL);
+            eglDestroyImageKHR(egl_display, thread->frame_egl_image);
         }
         thread->frame_egl_image = EGL_NO_IMAGE_KHR;
     }

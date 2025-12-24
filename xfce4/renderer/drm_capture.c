@@ -5,6 +5,7 @@
  * using direct DRM/KMS access - no X11 overhead.
  */
 
+#define _POSIX_C_SOURCE 200809L  // for O_CLOEXEC
 #include "breezy_xfce4_renderer.h"
 #include "logging.h"
 #include <xf86drm.h>
@@ -93,7 +94,7 @@ static int find_drm_device_with_xr_connector(const char *connector_name, char *d
                 for (uint32_t j = 0; j < props->count_props; j++) {
                     drmModePropertyRes *prop = drmModeGetProperty(drm_fd, props->props[j]);
                     if (prop && strcmp(prop->name, "NAME") == 0) {
-                        const char *name = (const char *)props->values[j];
+                        const char *name = (const char *)(uintptr_t)props->prop_values[j];
                         if (strcmp(name, connector_name) == 0) {
                             // Found it!
                             strncpy(device_path, device_path_tmp, path_size - 1);
@@ -163,7 +164,7 @@ int init_drm_capture(CaptureThread *thread) {
             for (uint32_t j = 0; j < props->count_props; j++) {
                 drmModePropertyRes *prop = drmModeGetProperty(thread->drm_fd, props->props[j]);
                 if (prop && strcmp(prop->name, "NAME") == 0) {
-                    const char *name = (const char *)props->values[j];
+                    const char *name = (const char *)(uintptr_t)props->prop_values[j];
                     if (strcmp(name, thread->connector_name) == 0) {
                         thread->connector_id = resources->connectors[i];
                         if (connector->encoder_id) {
@@ -251,7 +252,7 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
     ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
     #else
     log_fallback("DRM Prime export", "Using ioctl fallback instead of libdrm drmPrimeHandleToFD");
-    ret = drm_prime_handle_to_fd(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
+    ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, O_CLOEXEC | O_RDWR, &fd);
     #endif
     
     if (ret < 0 || fd < 0) {
