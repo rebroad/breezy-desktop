@@ -4,13 +4,14 @@ CFLAGS += -std=c11
 CFLAGS += $(shell pkg-config --cflags gl)
 CFLAGS += $(shell pkg-config --cflags glx)
 CFLAGS += $(shell pkg-config --cflags egl)
+CFLAGS += $(shell pkg-config --cflags xrandr 2>/dev/null || echo "-I/usr/include/X11/extensions")
 CFLAGS += $(shell pkg-config --cflags libdrm 2>/dev/null || echo "-I/usr/include/libdrm")
 
 LDFLAGS = -pthread
 LDFLAGS += $(shell pkg-config --libs gl)
 LDFLAGS += $(shell pkg-config --libs glx)
 LDFLAGS += $(shell pkg-config --libs egl)
-LDFLAGS += -lX11 -lXext
+LDFLAGS += -lX11 -lXext -lXrandr
 LDFLAGS += $(shell pkg-config --libs libdrm 2>/dev/null || echo "-ldrm")
 
 TARGET = breezy_x11_renderer

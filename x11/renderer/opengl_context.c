@@ -19,6 +19,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <drm/drm_fourcc.h>
 
 // Fallback if headers don't define these

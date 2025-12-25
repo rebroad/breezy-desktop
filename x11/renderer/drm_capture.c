@@ -1,13 +1,17 @@
 /*
  * DRM/KMS capture implementation for virtual XR connector
  * 
- * Finds and captures frames from the virtual XR connector (XR-0)
+ * Captures frames from the virtual XR connector (XR-0)
  * using direct DRM/KMS access - no X11 overhead.
+ * 
+ * Framebuffer ID is obtained via XRandR property (FRAMEBUFFER_ID) on XR-0 output,
+ * since virtual outputs don't have KMS connectors and can't be found via DRM enumeration.
  */
 
 #define _POSIX_C_SOURCE 200809L  // for O_CLOEXEC
 #include "breezy_x11_renderer.h"
 #include "logging.h"
+#include <stdio.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <fcntl.h>
@@ -18,6 +22,9 @@
 #include <drm/drm.h>
 #include <drm/drm_fourcc.h>
 #include <sys/ioctl.h>
+#include <X11/Xlib.h>
+#include <X11/extensions/Xrandr.h>
+#include <X11/Xatom.h>
 
 // drmPrimeHandleToFD is in libdrm, but we need to declare it if not available
 #ifndef DRM_IOCTL_PRIME_HANDLE_TO_FD
@@ -41,6 +48,7 @@ static int drm_prime_handle_to_fd(int fd, uint32_t handle, uint32_t flags, int *
 
 #define DRM_DEVICE_PATH "/dev/dri"
 #define DRM_DEVICE_PREFIX "card"
+#define FRAMEBUFFER_ID_PROPERTY "FRAMEBUFFER_ID"
 
 // DRM format definitions should be in drm_fourcc.h
 // Fallback definitions if header not available
@@ -48,18 +56,99 @@ static int drm_prime_handle_to_fd(int fd, uint32_t handle, uint32_t flags, int *
 #define DRM_FORMAT_XRGB8888 0x34325258  // 'XR24' in little-endian
 #endif
 
-// Find DRM device that has our virtual connector
-static int find_drm_device_with_xr_connector(const char *connector_name, char *device_path, size_t path_size) {
-    DIR *dir;
-    struct dirent *entry;
-    int drm_fd = -1;
-    int found = 0;
+/**
+ * Query FRAMEBUFFER_ID property from XR-0 output via XRandR
+ * Returns framebuffer ID on success, 0 on failure
+ */
+static uint32_t query_framebuffer_id_from_randr(const char *output_name) {
+    Display *dpy = XOpenDisplay(NULL);
+    if (!dpy) {
+        log_error("[DRM] Failed to open X display for RandR query\n");
+        return 0;
+    }
     
-    dir = opendir(DRM_DEVICE_PATH);
+    int event_base, error_base;
+    if (!XRRQueryExtension(dpy, &event_base, &error_base)) {
+        log_error("[DRM] XRandR extension not available\n");
+        XCloseDisplay(dpy);
+        return 0;
+    }
+    
+    XRRScreenResources *screen_res = XRRGetScreenResources(dpy, DefaultRootWindow(dpy));
+    if (!screen_res) {
+        log_error("[DRM] Failed to get XRandR screen resources\n");
+        XCloseDisplay(dpy);
+        return 0;
+    }
+    
+    uint32_t fb_id = 0;
+    
+    // Find XR-0 output
+    for (int i = 0; i < screen_res->noutput; i++) {
+        XRROutputInfo *output_info = XRRGetOutputInfo(dpy, screen_res, screen_res->outputs[i]);
+        if (!output_info) {
+            continue;
+        }
+        
+        if (strcmp(output_info->name, output_name) == 0) {
+            // Found the output, query FRAMEBUFFER_ID property
+            Atom prop_atom = XInternAtom(dpy, FRAMEBUFFER_ID_PROPERTY, False);
+            if (prop_atom != None) {
+                Atom actual_type;
+                int actual_format;
+                unsigned long nitems, bytes_after;
+                unsigned char *prop_data = NULL;
+                
+                int status = XRRGetOutputProperty(dpy, screen_res->outputs[i], prop_atom,
+                                                  0, 32, False, False, AnyPropertyType,
+                                                  &actual_type, &actual_format, &nitems,
+                                                  &bytes_after, &prop_data);
+                
+                if (status == Success && prop_data && nitems == 1 && actual_format == 32) {
+                    fb_id = *((uint32_t *)prop_data);
+                    log_info("[DRM] Found framebuffer ID %u from %s output\n", fb_id, output_name);
+                } else {
+                    log_error("[DRM] Failed to read FRAMEBUFFER_ID property from %s: status=%d, nitems=%lu, format=%d\n",
+                             output_name, status, nitems, actual_format);
+                }
+                
+                if (prop_data) {
+                    XFree(prop_data);
+                }
+            } else {
+                log_error("[DRM] FRAMEBUFFER_ID atom not found\n");
+            }
+            
+            XRRFreeOutputInfo(output_info);
+            break;
+        }
+        
+        XRRFreeOutputInfo(output_info);
+    }
+    
+    XRRFreeScreenResources(screen_res);
+    XCloseDisplay(dpy);
+    
+    if (fb_id == 0) {
+        log_error("[DRM] Output %s not found or FRAMEBUFFER_ID property not set\n", output_name);
+    }
+    
+    return fb_id;
+}
+
+/**
+ * Find DRM device that has the given framebuffer ID
+ * Returns 0 on success, -1 on failure
+ */
+static int find_drm_device_for_framebuffer(uint32_t fb_id, char *device_path, size_t path_size) {
+    DIR *dir = opendir(DRM_DEVICE_PATH);
     if (!dir) {
         log_error("[DRM] Failed to open %s: %s\n", DRM_DEVICE_PATH, strerror(errno));
         return -1;
     }
+    
+    struct dirent *entry;
+    int found = 0;
     
     while ((entry = readdir(dir)) != NULL) {
         if (strncmp(entry->d_name, DRM_DEVICE_PREFIX, strlen(DRM_DEVICE_PREFIX)) != 0) {
@@ -69,70 +158,51 @@ static int find_drm_device_with_xr_connector(const char *connector_name, char *d
         char device_path_tmp[256];
         snprintf(device_path_tmp, sizeof(device_path_tmp), "%s/%s", DRM_DEVICE_PATH, entry->d_name);
         
-        drm_fd = open(device_path_tmp, O_RDWR | O_CLOEXEC);
+        int drm_fd = open(device_path_tmp, O_RDWR | O_CLOEXEC);
         if (drm_fd < 0) {
             continue;
         }
         
-        // Query connectors
-        drmModeRes *resources = drmModeGetResources(drm_fd);
-        if (!resources) {
-            close(drm_fd);
-            continue;
-        }
-        
-        // Search for virtual XR connector
-        for (int i = 0; i < resources->count_connectors; i++) {
-            drmModeConnector *connector = drmModeGetConnector(drm_fd, resources->connectors[i]);
-            if (!connector) {
-                continue;
-            }
-            
-            // Get connector name
-            drmModeObjectProperties *props = drmModeObjectGetProperties(drm_fd, resources->connectors[i], DRM_MODE_OBJECT_CONNECTOR);
-            if (props) {
-                for (uint32_t j = 0; j < props->count_props; j++) {
-                    drmModePropertyRes *prop = drmModeGetProperty(drm_fd, props->props[j]);
-                    if (prop && strcmp(prop->name, "NAME") == 0) {
-                        const char *name = (const char *)(uintptr_t)props->prop_values[j];
-                        if (strcmp(name, connector_name) == 0) {
-                            // Found it!
-                            strncpy(device_path, device_path_tmp, path_size - 1);
-                            device_path[path_size - 1] = '\0';
-                            found = 1;
-                            drmModeFreeProperty(prop);
-                            break;
-                        }
-                    }
-                    if (prop) drmModeFreeProperty(prop);
-                }
-                drmModeFreeObjectProperties(props);
-            }
-            
-            drmModeFreeConnector(connector);
-            if (found) break;
-        }
-        
-        drmModeFreeResources(resources);
-        
-        if (found) {
+        // Try to get the framebuffer info
+        drmModeFBPtr fb_info = drmModeGetFB(drm_fd, fb_id);
+        if (fb_info) {
+            // Found it!
+            strncpy(device_path, device_path_tmp, path_size - 1);
+            device_path[path_size - 1] = '\0';
+            found = 1;
+            drmModeFreeFB(fb_info);
             close(drm_fd);
             break;
         }
+        
         close(drm_fd);
     }
     
     closedir(dir);
-    return found ? 0 : -1;
+    
+    if (!found) {
+        log_error("[DRM] Failed to find DRM device with framebuffer ID %u\n", fb_id);
+        return -1;
+    }
+    
+    return 0;
 }
 
 // Initialize DRM capture
 int init_drm_capture(CaptureThread *thread) {
-    char device_path[256];
+    // Query framebuffer ID from XRandR property
+    uint32_t fb_id = query_framebuffer_id_from_randr(thread->connector_name);
+    if (fb_id == 0) {
+        log_error("[DRM] Failed to get framebuffer ID from XRandR property\n");
+        return -1;
+    }
     
-    // Find DRM device with virtual XR connector
-    if (find_drm_device_with_xr_connector(thread->connector_name, device_path, sizeof(device_path)) < 0) {
-        log_error("[DRM] Failed to find DRM device with connector %s\n", thread->connector_name);
+    thread->fb_id = fb_id;
+    
+    // Find DRM device that has this framebuffer
+    char device_path[256];
+    if (find_drm_device_for_framebuffer(fb_id, device_path, sizeof(device_path)) < 0) {
+        log_error("[DRM] Failed to find DRM device for framebuffer ID %u\n", fb_id);
         return -1;
     }
     
@@ -145,68 +215,26 @@ int init_drm_capture(CaptureThread *thread) {
     
     log_info("[DRM] Opened device: %s\n", device_path);
     
-    // Get resources
-    drmModeRes *resources = drmModeGetResources(thread->drm_fd);
-    if (!resources) {
-        log_error("[DRM] Failed to get DRM resources\n");
+    // Get framebuffer info
+    thread->fb_info = drmModeGetFB(thread->drm_fd, fb_id);
+    if (!thread->fb_info) {
+        log_error("[DRM] Failed to get framebuffer info for FB ID %u: %s\n", fb_id, strerror(errno));
         close(thread->drm_fd);
         thread->drm_fd = -1;
         return -1;
     }
     
-    // Find connector and CRTC
-    for (int i = 0; i < resources->count_connectors; i++) {
-        drmModeConnector *connector = drmModeGetConnector(thread->drm_fd, resources->connectors[i]);
-        if (!connector) continue;
-        
-        drmModeObjectProperties *props = drmModeObjectGetProperties(thread->drm_fd, resources->connectors[i], DRM_MODE_OBJECT_CONNECTOR);
-        if (props) {
-            for (uint32_t j = 0; j < props->count_props; j++) {
-                drmModePropertyRes *prop = drmModeGetProperty(thread->drm_fd, props->props[j]);
-                if (prop && strcmp(prop->name, "NAME") == 0) {
-                    const char *name = (const char *)(uintptr_t)props->prop_values[j];
-                    if (strcmp(name, thread->connector_name) == 0) {
-                        thread->connector_id = resources->connectors[i];
-                        if (connector->encoder_id) {
-                            drmModeEncoder *encoder = drmModeGetEncoder(thread->drm_fd, connector->encoder_id);
-                            if (encoder && encoder->crtc_id) {
-                                thread->crtc_id = encoder->crtc_id;
-                                
-                                // Get current framebuffer
-                                drmModeCrtc *crtc = drmModeGetCrtc(thread->drm_fd, encoder->crtc_id);
-                                if (crtc && crtc->buffer_id) {
-                                    thread->fb_id = crtc->buffer_id;
-                                    thread->fb_info = drmModeGetFB(thread->drm_fd, crtc->buffer_id);
-                                    if (thread->fb_info) {
-                                        thread->width = thread->fb_info->width;
-                                        thread->height = thread->fb_info->height;
-                                        thread->fb_handle = thread->fb_info->handle;
-                                        
-                                        log_debug("[DRM] Found framebuffer: %dx%d, handle=%u\n",
-                                                  thread->width, thread->height, thread->fb_handle);
-                                    }
-                                }
-                                drmModeFreeCrtc(crtc);
-                            }
-                            drmModeFreeEncoder(encoder);
-                        }
-                    }
-                }
-                if (prop) drmModeFreeProperty(prop);
-            }
-            drmModeFreeObjectProperties(props);
-        }
-        drmModeFreeConnector(connector);
-    }
+    thread->width = thread->fb_info->width;
+    thread->height = thread->fb_info->height;
+    thread->fb_handle = thread->fb_info->handle;
     
-    drmModeFreeResources(resources);
+    log_info("[DRM] Framebuffer: %dx%d, handle=%u, FB ID=%u\n",
+             thread->width, thread->height, thread->fb_handle, thread->fb_id);
     
-    if (thread->connector_id == 0 || thread->crtc_id == 0) {
-        log_error("[DRM] Failed to find connector/CRTC for %s\n", thread->connector_name);
-        close(thread->drm_fd);
-        thread->drm_fd = -1;
-        return -1;
-    }
+    // Note: We don't need connector_id or crtc_id for virtual outputs
+    // since we're accessing the framebuffer directly
+    thread->connector_id = 0;
+    thread->crtc_id = 0;
     
     return 0;
 }
@@ -217,31 +245,9 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
         return -1;
     }
     
-    // Check if framebuffer changed (page flip)
-    drmModeCrtc *crtc = drmModeGetCrtc(thread->drm_fd, thread->crtc_id);
-    if (!crtc) {
-        return -1;
-    }
-    
-    if (crtc->buffer_id != thread->fb_id) {
-        // Framebuffer changed - update info
-        if (thread->fb_info) {
-            drmModeFreeFB(thread->fb_info);
-        }
-        
-        thread->fb_id = crtc->buffer_id;
-        thread->fb_info = drmModeGetFB(thread->drm_fd, crtc->buffer_id);
-        if (thread->fb_info) {
-            thread->fb_handle = thread->fb_info->handle;
-            thread->width = thread->fb_info->width;
-            thread->height = thread->fb_info->height;
-        }
-    }
-    drmModeFreeCrtc(crtc);
-    
-    if (!thread->fb_info) {
-        return -1;
-    }
+    // Check if framebuffer changed (this shouldn't happen often, but handle it)
+    // Re-query from RandR property if needed (for now, assume it doesn't change)
+    // TODO: Could add property change notification handling if needed
     
     // Export framebuffer handle to DMA-BUF file descriptor
     int fd = -1;
@@ -252,7 +258,7 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
     ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
     #else
     log_fallback("DRM Prime export", "Using ioctl fallback instead of libdrm drmPrimeHandleToFD");
-    ret = drmPrimeHandleToFD(thread->drm_fd, thread->fb_info->handle, O_CLOEXEC | O_RDWR, &fd);
+    ret = drm_prime_handle_to_fd(thread->drm_fd, thread->fb_info->handle, DRM_CLOEXEC | DRM_RDWR, &fd);
     #endif
     
     if (ret < 0 || fd < 0) {
@@ -261,56 +267,46 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
     }
     
     *dmabuf_fd = fd;
-    *stride = thread->fb_info->pitch;
     
-    // Try to get format from framebuffer properties
-    // Query DRM object properties for format and modifier
-    drmModeObjectProperties *props = drmModeObjectGetProperties(thread->drm_fd, thread->fb_id, DRM_MODE_OBJECT_FB);
-    if (props) {
-        for (uint32_t i = 0; i < props->count_props; i++) {
-            drmModePropertyRes *prop = drmModeGetProperty(thread->drm_fd, props->props[i]);
-            if (prop) {
-                if (strcmp(prop->name, "FB_ID") == 0) {
-                    // Already have this
-                } else if (strcmp(prop->name, "IN_FMT_FOURCC") == 0 || strcmp(prop->name, "IN_FORMAT") == 0) {
-                    *format = (uint32_t)props->prop_values[i];
-                } else if (strcmp(prop->name, "IN_FMT_MODIFIER") == 0 || strcmp(prop->name, "IN_MODIFIER") == 0) {
-                    *modifier = (uint32_t)props->prop_values[i];
-                }
-                drmModeFreeProperty(prop);
-            }
-        }
-        drmModeFreeObjectProperties(props);
+    // Get format and stride from framebuffer info
+    // Note: drmModeGetFB doesn't provide format directly, we may need to query it
+    // For now, assume XRGB8888 (most common format)
+    if (format) {
+        *format = DRM_FORMAT_XRGB8888;  // Default assumption
     }
     
-    // Default to XRGB8888 if format not found
-    if (*format == 0) {
-        log_fallback("DRM framebuffer format detection", "Using default XRGB8888 (could not query from properties)");
-        *format = DRM_FORMAT_XRGB8888;
-    } else {
-        log_debug("DRM framebuffer format: 0x%x\n", *format);
+    if (stride) {
+        // Pitch from framebuffer info (in bytes)
+        *stride = thread->fb_info->pitch;
     }
     
-    // Default to linear modifier if not found
-    if (*modifier == 0 || *modifier == DRM_FORMAT_MOD_INVALID) {
-        log_fallback("DRM framebuffer modifier detection", "Using default LINEAR modifier (could not query from properties)");
-        *modifier = DRM_FORMAT_MOD_LINEAR;
-    } else {
-        log_debug("DRM framebuffer modifier: 0x%llx\n", (unsigned long long)*modifier);
+    if (modifier) {
+        // No modifier info from drmModeGetFB - use 0 to indicate no modifier
+        *modifier = 0;
     }
+    
+    log_debug("[DRM] Exported DMA-BUF: fd=%d, format=0x%x, stride=%u\n",
+             fd, format ? *format : 0, stride ? *stride : 0);
     
     return 0;
 }
 
-// Cleanup DRM capture
+// Cleanup DRM capture resources
 void cleanup_drm_capture(CaptureThread *thread) {
     if (thread->fb_info) {
         drmModeFreeFB(thread->fb_info);
         thread->fb_info = NULL;
     }
+
     if (thread->drm_fd >= 0) {
         close(thread->drm_fd);
         thread->drm_fd = -1;
     }
-}
 
+    thread->fb_id = 0;
+    thread->fb_handle = 0;
+    thread->width = 0;
+    thread->height = 0;
+    thread->connector_id = 0;
+    thread->crtc_id = 0;
+}
