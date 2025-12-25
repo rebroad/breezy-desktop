@@ -94,7 +94,7 @@ class VirtualDisplayX11:
             # Try to find a suitable virtual output
             self.virtual_output = self._find_virtual_output()
             if not self.virtual_output:
-                logger.warning("No virtual output available. Virtual display creation on X11/X11 is limited.")
+                logger.warning("No virtual output available. Virtual display creation on X11 is limited.")
                 logger.warning("Ensure a dummy output (e.g. VIRTUAL1) is configured with the xf86-video-dummy driver.")
                 return
 

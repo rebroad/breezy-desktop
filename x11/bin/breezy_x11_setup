@@ -49,18 +49,18 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BREEZY_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Install a small wrapper for virtualdisplay_xfce4 into ~/.local/bin
+# Install a small wrapper for virtualdisplay_x11 into ~/.local/bin
 BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
 mkdir -p "$BIN_HOME"
 
-echo "Installing virtualdisplay_xfce4 launcher..."
-cat >"$BIN_HOME/virtualdisplay_xfce4" <<EOF
+echo "Installing virtualdisplay_x11 launcher..."
+cat >"$BIN_HOME/virtualdisplay_x11" <<EOF
 #!/usr/bin/env bash
-# Launcher for Breezy Desktop XFCE4 virtual display helper
+# Launcher for Breezy Desktop X11 virtual display helper
 export PYTHONPATH="${BREEZY_DIR}:\$PYTHONPATH"
-exec python3 "${BREEZY_DIR}/xfce4/src/virtualdisplay_xfce4.py" "\$@"
+exec python3 "${BREEZY_DIR}/x11/src/virtualdisplay_x11.py" "\$@"
 EOF
-chmod +x "$BIN_HOME/virtualdisplay_xfce4"
+chmod +x "$BIN_HOME/virtualdisplay_x11"
 
 # Make the breezy-desktop tree importable in dev mode via a .pth file
 echo "Registering breezy-desktop source tree with Python (user site-packages)..."
@@ -69,9 +69,9 @@ mkdir -p "$PYTHON_SITE_PACKAGES"
 echo "$BREEZY_DIR" > "$PYTHON_SITE_PACKAGES/breezy_desktop_dev.pth"
 
 echo ""
-echo "Breezy Desktop XFCE4 setup complete!"
+echo "Breezy Desktop X11 setup complete!"
 echo ""
-echo "Note: Virtual display creation on XFCE4/X11 is limited compared to GNOME/KDE."
+echo "Note: Virtual display creation on X11-based desktops is limited compared to GNOME/KDE."
 echo "For best results, consider:"
 echo "  1. Installing xf86-video-dummy driver"
 echo "  2. Using Wayland session if available"
