@@ -19,7 +19,7 @@ todos:
     content: Research Xorg modesetting driver (hw/xfree86/drivers/modesetting) and Mutter's monitor stack to design a virtual XR connector that appears as an XRandR output but can be driven by Breezy's 3D renderer and, in AR mode, hides the physical XReal glasses connector from the 2D desktop map
     status: pending
     dependencies:
-      - design_xfce_virtual_display_api
+      - design_x11_virtual_display_api
   - id: implement_3d_renderer
     content: "Implement standalone 3D renderer with multi-threaded architecture: non-blocking X11 screen capture thread, render thread matching glasses refresh rate, thread-safe frame buffer, IMU data reading, GLSL shader porting, OpenGL rendering to AR glasses display"
     status: pending
@@ -541,9 +541,9 @@ todos:
 
 **Important Distinction:** We are NOT building a full compositor replacement. We're building a specialized 3D renderer that works alongside X11's existing compositor.
 
-### X11's Existing Compositor (Xfwm4)
+### X11's Existing Compositors
 
-- **X11 DOES have a compositor** - it's called Xfwm4 (XFCE Window Manager)
+- **X11-based desktops have compositors** - For example, XFCE uses Xfwm4 (XFCE Window Manager), and other desktops have their own compositors
 - It handles normal desktop compositing (shadows, transparency, window effects)
 - It's lightweight and designed for traditional 2D desktop use
 - It does NOT have:
@@ -555,8 +555,8 @@ todos:
 ### What We're Building
 
 - **Specialized 3D Renderer** (not a full compositor)
-- Works **ALONGSIDE** Xfwm4, not replacing it
-- Xfwm4 continues to handle normal desktop compositing
+- Works **ALONGSIDE** the desktop compositor, not replacing it
+- The desktop compositor continues to handle normal desktop compositing
 - Our renderer only handles:
 - Virtual display creation (via xrandr)
 - 3D transformation of captured content
