@@ -44,12 +44,17 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 **Reference:** Standard RandR mode-setting APIs (`RRSetCrtcConfig`, CRTC's `set_mode_major` callback)
 
-#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Required)
+#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Partially Complete)
 
-**What's needed:**
-- Export virtual output framebuffers as DMA-BUF file descriptors
-- Use `drmPrimeHandleToFD` or equivalent to expose framebuffers for capture
-- Ensure framebuffers are in formats compatible with EGL DMA-BUF import (typically XRGB8888 or ARGB8888)
+**What's implemented:**
+- ✅ `drmmode_xr_export_framebuffer_to_dmabuf()` function exists in Xorg driver
+- ✅ Exports framebuffer handle to DMA-BUF file descriptor using `drmPrimeHandleToFD()`
+- ✅ Works with both GBM and dumb buffers
+
+**What's still needed:**
+- 🚧 Mechanism to expose framebuffer ID to renderer (RandR property or IPC)
+- 🚧 Renderer needs to be updated to get framebuffer ID (currently tries to find via DRM connector enumeration, which won't work for userspace-only virtual outputs)
+- 🚧 Integration testing to verify zero-copy capture works end-to-end
 
 **Why it's needed:**
 - The 3D renderer uses DMA-BUF zero-copy for optimal performance
@@ -57,6 +62,8 @@ Based on code review of `drmmode_xr_virtual.c`:
 - Eliminates CPU-side pixel copying, reducing latency and improving performance
 
 **Reference:** `x11/renderer/DMA_BUF_OPTIMIZATION.md`
+
+**Technical Note:** The export function exists in the Xorg driver, but since virtual outputs are userspace-only (no KMS connector), the renderer cannot find them via DRM enumeration. The framebuffer ID needs to be exposed via a RandR property on the virtual output, or via another IPC mechanism.
 
 #### 3. **X11 Backend Integration** (Required)
 
