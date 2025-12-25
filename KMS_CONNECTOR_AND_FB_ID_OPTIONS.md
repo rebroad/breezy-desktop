@@ -342,19 +342,18 @@ Use RandR property `FRAMEBUFFER_ID` on XR-0 output as the primary mechanism:
 3. **Automatic updates** - property updates when framebuffer changes
 4. **Integrated** - fits naturally with `XR_WIDTH`, `XR_HEIGHT` properties
 
-### Secondary: Direct DMA-BUF Export (if needed)
+### Note on Performance: Socket is NOT an Optimization
 
-If we want to optimize further, add a Unix socket mechanism to pass DMA-BUF FD directly:
+**Important:** A Unix socket approach would **NOT** improve performance. The current implementation exports the DMA-BUF FD on every frame, which is inefficient. The optimization is to **export once and reuse the FD** until the framebuffer changes, regardless of how the initial FD is obtained.
 
-1. **Renderer queries property first** - gets framebuffer ID
-2. **Optionally connects to socket** - requests DMA-BUF FD export
-3. **Xorg exports FD** - uses `drmmode_xr_export_framebuffer_to_dmabuf()`
-4. **FD passed via socket** - renderer imports via EGL
+See `DMA_BUF_PERFORMANCE_ANALYSIS.md` for detailed performance analysis.
 
-This gives us:
-- ✅ Standard path (property) for compatibility
-- ✅ Optimized path (socket + FD) for performance
-- ✅ Flexibility (renderer can choose which to use)
+**Both approaches (property + export, or socket + export) can be optimized the same way:**
+- Export DMA-BUF FD **once** during initialization
+- Reuse the same FD for all frames
+- Only re-export when framebuffer changes (detected via error from `drmModeGetFB()`)
+
+The socket approach would add complexity without performance benefit, since it would still require per-frame communication if used incorrectly, or the same "export once, reuse" pattern if used correctly.
 
 ### Implementation Priority
 
@@ -377,7 +376,6 @@ This gives us:
   - Standard, integrated, easy to implement
   - Renderer can query via XRandR extension
   - Automatic updates when framebuffer changes
-- **Optional optimization:** Unix socket for direct DMA-BUF FD passing
-  - Reduces one export step in renderer
-  - More complex, but better performance
+  - **Performance note:** The real optimization is exporting DMA-BUF FD once and reusing it (see `DMA_BUF_PERFORMANCE_ANALYSIS.md`)
+  - Unix socket approach would not improve performance and adds complexity
 

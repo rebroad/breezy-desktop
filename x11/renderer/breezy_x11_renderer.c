@@ -218,53 +218,74 @@ static void *capture_thread_func(void *arg) {
     clock_gettime(CLOCK_MONOTONIC, &next_frame_time);
     
     while (!thread->stop_requested) {
-        // Export DRM framebuffer as DMA-BUF (zero-copy)
-        int dmabuf_fd = -1;
-        uint32_t format, stride, modifier;
+        // Check if framebuffer still exists (lightweight check for mode changes)
+        // If FB was destroyed/changed, cached_dmabuf_fd will be invalid
+        drmModeFBPtr fb_check = drmModeGetFB(thread->drm_fd, thread->fb_id);
+        if (!fb_check) {
+            // Framebuffer changed (resolution/mode switch) - re-initialize DRM capture
+            log_info("[Capture] Framebuffer changed (FB ID %u invalidated), re-initializing DRM capture\n", thread->fb_id);
+            
+            // Cleanup old framebuffer info and cached DMA-BUF FD
+            cleanup_drm_capture(thread);
+            
+            // Re-initialize with new framebuffer ID (will export new DMA-BUF FD)
+            if (init_drm_capture(thread) < 0) {
+                log_error("[Capture] Failed to reinitialize DRM capture after framebuffer change\n");
+                // Wait a bit before retrying
+                struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
+                nanosleep(&sleep_time, NULL);
+                continue;
+            } else {
+                log_info("[Capture] Successfully reinitialized DRM capture with new framebuffer ID %u\n", thread->fb_id);
+            }
+        } else {
+            drmModeFreeFB(fb_check);
+        }
         
-        int export_result = export_drm_framebuffer_to_dmabuf(thread, &dmabuf_fd, &format, &stride, &modifier);
-        if (export_result == 0) {
+        // Reuse cached DMA-BUF FD (exported once during init, reused for all frames)
+        if (thread->cached_dmabuf_fd >= 0) {
             RenderThread *render_thread = &thread->renderer->render_thread;
             
             // Lock mutex to protect shared DMA-BUF data
             pthread_mutex_lock(&render_thread->dmabuf_mutex);
             
-            // Close old fd if framebuffer changed
+            // Close old fd if framebuffer ID changed (shouldn't happen often, but handle it)
             if (render_thread->current_dmabuf_fd >= 0 && 
                 thread->fb_id != render_thread->current_fb_id) {
                 close(render_thread->current_dmabuf_fd);
             }
             
-            // Pass DMA-BUF info to render thread
-            render_thread->current_dmabuf_fd = dmabuf_fd;
-            render_thread->current_fb_id = thread->fb_id;
-            render_thread->current_format = format;
-            render_thread->current_stride = stride;
-            render_thread->current_modifier = modifier;
-            
-            pthread_mutex_unlock(&render_thread->dmabuf_mutex);
-            
-            // Signal new frame available (marker frame - no pixel copy)
-            uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
-            write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
-        } else if (export_result == -2) {
-            // Framebuffer changed (resolution/mode switch) - re-initialize DRM capture
-            log_info("[Capture] Framebuffer changed, re-initializing DRM capture\n");
-            
-            // Cleanup old framebuffer info
-            cleanup_drm_capture(thread);
-            
-            // Re-initialize with new framebuffer ID
-            if (init_drm_capture(thread) < 0) {
-                log_error("[Capture] Failed to reinitialize DRM capture after framebuffer change\n");
-                // Continue trying - maybe next frame will work
+            // Pass cached DMA-BUF info to render thread
+            // Note: We're reusing the same FD, but we need to duplicate it for the render thread
+            // because the render thread will take ownership and close it when done
+            int dmabuf_fd_dup = dup(thread->cached_dmabuf_fd);
+            if (dmabuf_fd_dup >= 0) {
+                render_thread->current_dmabuf_fd = dmabuf_fd_dup;
+                render_thread->current_fb_id = thread->fb_id;
+                render_thread->current_format = thread->cached_format;
+                render_thread->current_stride = thread->cached_stride;
+                render_thread->current_modifier = thread->cached_modifier;
+                
+                pthread_mutex_unlock(&render_thread->dmabuf_mutex);
+                
+                // Signal new frame available (marker frame - no pixel copy)
+                uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
+                write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
             } else {
-                log_info("[Capture] Successfully reinitialized DRM capture with new framebuffer ID %u\n", thread->fb_id);
+                pthread_mutex_unlock(&render_thread->dmabuf_mutex);
+                log_error("[Capture] Failed to duplicate DMA-BUF FD: %s\n", strerror(errno));
+                // Wait a bit before retrying
+                struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
+                nanosleep(&sleep_time, NULL);
             }
         } else {
-            // Export failed for other reason, wait a bit
-            struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
-            nanosleep(&sleep_time, NULL);
+            // Cached FD not available - should not happen after successful init
+            log_warn("[Capture] Cached DMA-BUF FD not available, re-initializing\n");
+            cleanup_drm_capture(thread);
+            if (init_drm_capture(thread) < 0) {
+                struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
+                nanosleep(&sleep_time, NULL);
+            }
         }
         
         // Sleep until next frame
@@ -302,6 +323,7 @@ static int init_capture_thread(CaptureThread *thread, Renderer *renderer) {
     thread->stop_requested = false;
     thread->thread_started = false;
     thread->drm_fd = -1;
+    thread->cached_dmabuf_fd = -1;  // Initialize cached DMA-BUF FD to invalid
     thread->connector_name = "XR-0";  // Default virtual connector name
     
     // Initialize DRM capture

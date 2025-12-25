@@ -37,6 +37,12 @@ typedef struct CaptureThread {
     uint32_t fb_id;  // Current framebuffer ID
     drmModeFBPtr fb_info;  // Current framebuffer info
     uint32_t fb_handle;  // Framebuffer handle for DMA-BUF export
+    
+    // Cached DMA-BUF export (exported once, reused until framebuffer changes)
+    int cached_dmabuf_fd;  // -1 if not exported yet
+    uint32_t cached_format;
+    uint32_t cached_stride;
+    uint32_t cached_modifier;
 } CaptureThread;
 
 // Render thread structure (needed by opengl_context.c and shader_loader.c)

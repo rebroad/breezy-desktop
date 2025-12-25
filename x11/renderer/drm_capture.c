@@ -253,6 +253,23 @@ int init_drm_capture(CaptureThread *thread) {
     thread->connector_id = 0;
     thread->crtc_id = 0;
     
+    // Export DMA-BUF FD once during initialization (will be reused until FB changes)
+    thread->cached_dmabuf_fd = -1;
+    if (export_drm_framebuffer_to_dmabuf(thread, &thread->cached_dmabuf_fd,
+                                          &thread->cached_format,
+                                          &thread->cached_stride,
+                                          &thread->cached_modifier) < 0) {
+        log_error("[DRM] Failed to export DMA-BUF FD during initialization\n");
+        drmModeFreeFB(thread->fb_info);
+        thread->fb_info = NULL;
+        close(thread->drm_fd);
+        thread->drm_fd = -1;
+        return -1;
+    }
+    
+    log_info("[DRM] Exported DMA-BUF FD %d (will be reused until framebuffer changes)\n",
+             thread->cached_dmabuf_fd);
+    
     return 0;
 }
 
@@ -317,6 +334,12 @@ int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint
 
 // Cleanup DRM capture resources
 void cleanup_drm_capture(CaptureThread *thread) {
+    // Close cached DMA-BUF FD
+    if (thread->cached_dmabuf_fd >= 0) {
+        close(thread->cached_dmabuf_fd);
+        thread->cached_dmabuf_fd = -1;
+    }
+    
     if (thread->fb_info) {
         drmModeFreeFB(thread->fb_info);
         thread->fb_info = NULL;
@@ -333,4 +356,7 @@ void cleanup_drm_capture(CaptureThread *thread) {
     thread->height = 0;
     thread->connector_id = 0;
     thread->crtc_id = 0;
+    thread->cached_format = 0;
+    thread->cached_stride = 0;
+    thread->cached_modifier = 0;
 }
