@@ -78,10 +78,12 @@ Connector enumeration currently happens in `drmmode_output_init(...)` using KMS 
 
 We will:
 
-- **Option A (preferred later):** Add a small KMS “virtual connector” in the kernel/DRM layer (advanced, out-of-scope initially).
-- **Option B (initial):** Inject an extra `xf86OutputPtr` for XR-0 purely in userspace:
-  - After probing real connectors, create an extra `xf86Output` named `"XR-0"`.
-  - Mark it as `non_desktop` when AR mode is inactive if needed.
+- **Option A (not implemented, future enhancement):** Add a small KMS "virtual connector" in the kernel/DRM layer (advanced, out-of-scope initially).
+- **Option B (current implementation):** Inject an extra `xf86OutputPtr` for XR-Manager and virtual XR outputs purely in userspace:
+  - After probing real connectors, create an extra `xf86Output` named `"XR-Manager"` (control output).
+  - Dynamically create `xf86Output` instances for virtual XR outputs (XR-0, XR-1, etc.) via RandR properties.
+  - These outputs have no corresponding KMS connector (`mode_output = NULL`).
+  - They are synthetic outputs that exist only in Xorg's RandR layer.
 
 Pseudo-hook in modesetting screen init (in `driver.c` after real outputs are set up):
 
@@ -100,6 +102,7 @@ ms_init_xr_output(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         return;
 
     /* No KMS connector: synthetic output with off-screen backing */
+    /* In Option B (current), mode_output = NULL (no drmModeConnectorPtr) */
     output->mm_width  = 0;
     output->mm_height = 0;
     output->driver_private = NULL; /* or small private struct */
