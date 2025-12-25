@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Setting up Breezy Desktop for X11/Xorg..."
+echo "Setting up Breezy Desktop for X11/Xorg (development mode)..."
 
 # Check if running on X11
 if [ -z "$XDG_SESSION_TYPE" ] || [[ ! "$XDG_SESSION_TYPE" =~ [Xx]11 ]]; then
@@ -27,40 +27,11 @@ check_command() {
 }
 
 check_command "xrandr"
-check_command "cvt"
 check_command "python" "python3"
-
-# Check for dummy Xorg video driver (optional but recommended)
-# Debian/Ubuntu: xserver-xorg-video-dummy
-# Arch: xf86-video-dummy
-# Fedora: xorg-x11-drv-dummy
-if ! dpkg -l 2>/dev/null | grep -qE "xserver-xorg-video-dummy|xf86-video-dummy" \
-   && ! pacman -Qq xf86-video-dummy 2>/dev/null \
-   && ! rpm -q xorg-x11-drv-dummy 2>/dev/null; then
-    echo "Note: Xorg dummy video driver is not installed. Virtual display creation may be limited."
-    echo "For better virtual display support, consider installing:"
-    echo "  Debian/Ubuntu: sudo apt install xserver-xorg-video-dummy"
-    echo "  Arch Linux:   sudo pacman -S xf86-video-dummy"
-    echo "  Fedora:       sudo dnf install xorg-x11-drv-dummy"
-    echo ""
-fi
 
 # Get script directory and repo root (treat repo as the install location)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BREEZY_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
-# Install a small wrapper for virtualdisplay_x11 into ~/.local/bin
-BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
-mkdir -p "$BIN_HOME"
-
-echo "Installing virtualdisplay_x11 launcher..."
-cat >"$BIN_HOME/virtualdisplay_x11" <<EOF
-#!/usr/bin/env bash
-# Launcher for Breezy Desktop X11 virtual display helper
-export PYTHONPATH="${BREEZY_DIR}:\$PYTHONPATH"
-exec python3 "${BREEZY_DIR}/x11/src/virtualdisplay_x11.py" "\$@"
-EOF
-chmod +x "$BIN_HOME/virtualdisplay_x11"
 
 # Make the breezy-desktop tree importable in dev mode via a .pth file
 echo "Registering breezy-desktop source tree with Python (user site-packages)..."
@@ -71,10 +42,15 @@ echo "$BREEZY_DIR" > "$PYTHON_SITE_PACKAGES/breezy_desktop_dev.pth"
 echo ""
 echo "Breezy Desktop X11 setup complete!"
 echo ""
-echo "Note: Virtual display creation on X11-based desktops is limited compared to GNOME/KDE."
-echo "For best results, consider:"
-echo "  1. Installing xf86-video-dummy driver"
-echo "  2. Using Wayland session if available"
+echo "This script sets up the development environment for Breezy Desktop on X11."
+echo "For production use, install Breezy Desktop as a package instead."
+echo ""
+echo "Prerequisites for X11 backend:"
+echo "  - Xorg with modesetting driver (standard on most Linux distributions)"
+echo "  - Xorg modesetting driver with virtual XR output support (XR-Manager)"
+echo ""
+echo "The X11 backend uses virtual XR outputs (XR-0, XR-1, etc.) created via"
+echo "the Xorg modesetting driver, not the dummy driver."
 echo ""
 echo "You can now launch Breezy Desktop from the applications menu."
 

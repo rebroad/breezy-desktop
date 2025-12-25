@@ -51,6 +51,8 @@ See [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) for detailed tech
 
 ## X11 Backend Setup
 
+**For development mode only:**
+
 From your `breezy-desktop` source tree:
 
 ```bash
@@ -61,9 +63,10 @@ chmod +x x11/bin/breezy_x11_setup
 
 This will:
 
-- Install a `virtualdisplay_x11` launcher into `~/.local/bin`.
-- Register the `breezy-desktop` source tree with your user `site-packages` via a `.pth` file, so the X11 backend can be imported.
-- Verify basic dependencies (`xrandr`, `cvt`, `python3`) are available.
+- Register the `breezy-desktop` source tree with your user `site-packages` via a `.pth` file, so the X11 backend can be imported in development mode.
+- Verify basic dependencies (`xrandr`, `python3`) are available.
+
+**Note:** For production use, install Breezy Desktop as a package. The setup script is only needed for development.
 
 ## Usage (Once Implementation is Complete)
 
@@ -77,9 +80,9 @@ This will:
 
 ## Architecture
 
-- `src/x11_backend.py` - Main backend implementation
-- `src/virtualdisplay_x11.py` - Virtual display creation script
-- `bin/breezy_x11_setup` - Installation script
+- `src/x11_backend.py` - Main backend implementation (uses XR-Manager API)
+- `src/virtualdisplay_x11.py` - Legacy virtual display script (uses dummy driver, deprecated)
+- `bin/breezy_x11_setup` - Development setup script
 
 ## Implementation Details
 
