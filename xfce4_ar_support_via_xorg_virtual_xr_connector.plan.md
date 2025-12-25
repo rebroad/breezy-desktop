@@ -78,7 +78,7 @@ Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modes
 - In AR mode, users arrange the virtual XR connector like any other monitor.
 - Provide a control path (X property, RandR property, or simple CLI) to toggle AR mode that Breezy or the user can call.
 
-### 5. Wire Breezy’s XFCE backend to the virtual XR connector
+### 5. Wire Breezy's X11 backend to the virtual XR connector
 
 - Update `breezy-desktop`’s X11 backend to:
 - Discover the virtual XR connector via XRandR (`XR-0`).
@@ -105,7 +105,7 @@ Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modes
 - Stopping AR restores the normal 2D mapping (physical XR monitor visible again, virtual XR connector disabled).
 - Add configuration options in Breezy’s UI to:
 - Select AR vs normal mode.
-- Choose how the virtual connector is positioned (via XFCE display tool) and how it maps into AR space.
+- Choose how the virtual connector is positioned (via display settings tools) and how it maps into AR space.
 
 ### 8. Build, test, and iterate
 

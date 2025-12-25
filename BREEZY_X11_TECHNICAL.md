@@ -913,7 +913,7 @@ Virtual outputs are exposed through RandR:
 **Approach**: Virtual outputs use **virtual CRTCs** (software-based) that allow the desktop compositor to render to them. The **3D renderer acts as the "driver"** for these virtual outputs:
 
 - **Virtual CRTCs**: Software-based CRTCs are created for virtual outputs (XR-0, XR-1, etc.)
-- **Desktop Compositor Rendering**: The compositor (Mutter for GNOME, or XFCE compositor) renders desktop content to virtual outputs via these virtual CRTCs
+- **Desktop Compositor Rendering**: The compositor (Mutter for GNOME, or the desktop compositor on X11) renders desktop content to virtual outputs via these virtual CRTCs
 - **3D Renderer as CRTC Driver**: Breezy's 3D renderer reads the framebuffers from virtual outputs, applies 3D transformations (IMU-based rotation, FOV, etc.), and composites the result to the physical XR display
 - **Physical Display Hidden**: The physical XR display (e.g., XREAL glasses) is marked as `non_desktop` via EDID detection so it doesn't appear in Display Settings. Display Settings only show virtual outputs (the 2D desktop arrangement), not the physical XR sink.
 
@@ -955,7 +955,7 @@ Virtual XR outputs provide:
 
 1. **Virtual XR outputs are created** (XR-0, XR-1, etc.) via Xorg modesetting driver with virtual CRTCs
 2. **Physical XR display is hidden** from Display Settings (detected via EDID, marked as `non_desktop` or disabled)
-3. **XFCE compositor renders to virtual outputs** (XR-0, etc.) via virtual CRTCs (single render pass)
+3. **Desktop compositor renders to virtual outputs** (XR-0, etc.) via virtual CRTCs (single render pass)
 4. **Breezy 3D renderer captures from virtual outputs** and reads the framebuffers (via DRM/X11 APIs)
 5. **Breezy applies 3D transformations** based on IMU data (head tracking, rotation, FOV calculations, display distance)
 6. **Breezy renders transformed content directly to the physical XR display** via OpenGL
@@ -973,9 +973,9 @@ Virtual XR outputs provide:
 
 1. **Complete virtual XR output infrastructure** in Xorg modesetting driver (virtual CRTCs, RandR integration)
 2. **Hide physical XR display** from Display Settings (detect via EDID, mark as `non_desktop`)
-3. **XFCE backend implementation** that:
+3. **X11 backend implementation** that:
    - Creates/manages virtual XR outputs via RandR
-   - Configures XFCE compositor to render to virtual outputs
+   - Configures desktop compositor to render to virtual outputs
 4. **Breezy 3D renderer** that:
    - Reads framebuffers from virtual XR outputs (via DRM/X11 APIs)
    - Applies 3D transformations using OpenGL/GLSL shaders (port from GNOME shader)

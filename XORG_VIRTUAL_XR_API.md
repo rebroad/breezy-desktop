@@ -18,8 +18,8 @@ flowchart LR
   xorg[Xorg+Modesetting]
   xr0[XR-0 virtual connector]
   physXR[PhysicalXR connector]
-  xfceRandr[XFCE RandR clients\n(display tool, apps)]
-  breezy[Breezy XFCE backend\n+ 3D renderer]
+  xfceRandr[RandR clients\n(display tool, apps)]
+  breezy[Breezy X11 backend\n+ 3D renderer]
 
   kernelDRM --> xorg
   xorg --> physXR
@@ -29,7 +29,7 @@ flowchart LR
 ```
 
 - `XR-0` is a **virtual connector/output** exposed by the modesetting driver.
-- RandR clients (XFCE display tool, apps) see `XR-0` as a normal monitor.
+- RandR clients (display settings tools, apps) see `XR-0` as a normal monitor.
 - Breezy:
   - Reads `XR-0` geometry/placement via RandR.
   - Captures its content from an associated off-screen buffer / pixmap.
@@ -172,18 +172,18 @@ Exact capture strategy can evolve independently of the modesetting driver, as lo
 
 ## Breezy & XFCE Integration (summary)
 
-- XFCE’s display tool:
-  - Sees XR-0 as a normal RandR output.
+- Display settings tools:
+  - See XR-0 as a normal RandR output.
   - User arranges it relative to other monitors.
 
-- Breezy XFCE backend:
+- Breezy X11 backend:
   - Uses XRandR to discover XR-0 and read its geometry and placement.
   - Treats XR-0’s rectangle as the 2D “virtual desktop plane” for AR.
 
 - Breezy 3D renderer:
   - Captures XR-0 contents.
   - Combines them with IMU data.
-  - Renders to the XR connector in AR space, respecting the layout configured through XFCE's display tool.
+  - Renders to the XR connector in AR space, respecting the layout configured through display settings tools.
 
 ## Communication Interface: Breezy ↔ Xorg
 

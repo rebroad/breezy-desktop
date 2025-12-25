@@ -12,7 +12,7 @@ Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's c
 
 1. **Virtual XR outputs** (XR-0, XR-1, etc.) are created via the Xorg modesetting driver with virtual CRTCs
 2. **Physical XR display** is hidden from Display Settings (detected via EDID, marked as `non_desktop`)
-3. **XFCE compositor** renders to virtual outputs via virtual CRTCs (single render pass)
+3. **Desktop compositor** renders to virtual outputs via virtual CRTCs (single render pass)
 4. **Breezy's 3D renderer** captures from virtual outputs, applies 3D transformations, and renders to the physical XR display
 
 **Why Virtual Outputs (Not Dummy Driver):**
@@ -71,7 +71,7 @@ This will:
 - Breezy will:
   - Create virtual XR outputs (XR-0, XR-1, etc.) via RandR
   - Hide the physical XR display from Display Settings
-  - Configure XFCE compositor to render to virtual outputs
+  - Configure desktop compositor to render to virtual outputs
   - Capture from virtual outputs, apply 3D transformations, and render to physical XR display
 - Virtual outputs will appear in Display Settings like normal monitors, allowing you to configure them as needed.
 
