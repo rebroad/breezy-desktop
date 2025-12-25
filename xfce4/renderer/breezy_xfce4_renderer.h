@@ -1,5 +1,5 @@
-#ifndef BREEZY_XFCE4_RENDERER_H
-#define BREEZY_XFCE4_RENDERER_H
+#ifndef BREEZY_STANDALONE_RENDERER_H
+#define BREEZY_STANDALONE_RENDERER_H
 
 #include <stdint.h>
 #include <stdbool.h>

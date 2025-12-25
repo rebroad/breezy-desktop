@@ -1,4 +1,6 @@
-# Testing Guide for XFCE4 Renderer
+# Testing Guide for Standalone Renderer
+
+**Note**: This renderer works with any desktop environment/WM that uses Xorg (XFCE4, i3, Openbox, etc.).
 
 ## Prerequisites
 

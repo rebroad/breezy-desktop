@@ -737,29 +737,35 @@ Users would disable SBS mode for:
 
 **Current Status**: Breezy Desktop works on X11 under GNOME. XFCE4 support requires virtual XR outputs in Xorg (implementation in progress).
 
-### 7.1 XFCE4 Support Roadmap (Immediate Priority)
+### 7.1 Standalone Renderer for Xorg-Based Desktops
 
-Since GNOME support is already working, our immediate focus is on XFCE4 support. Unlike GNOME which uses Mutter (a compositor with 3D rendering capabilities), XFCE4 does not have built-in 3D rendering capabilities, so Breezy Desktop needs to provide its own 3D renderer.
+Since GNOME support is already working, our immediate focus is on supporting other desktop environments/WMs that use Xorg (XFCE4, i3, Openbox, etc.). Unlike GNOME which uses Mutter (a compositor with 3D rendering capabilities), these desktops do not have built-in 3D rendering capabilities, so Breezy Desktop needs to provide its own standalone 3D renderer.
 
-#### XFCE4 Architecture Differences
+#### Architecture Differences from GNOME
 
-XFCE4 differs from GNOME in several key ways:
+Xorg-based desktops (XFCE4, i3, Openbox, etc.) differ from GNOME in several key ways:
 
-1. **No Built-in 3D Compositor**: XFCE4 uses XFWM4 compositor which handles 2D window composition but does not have 3D rendering capabilities
-2. **Different Display Management**: XFCE4 uses RandR directly (via `xfsettingsd`) rather than Mutter's DisplayConfig D-Bus interface
-3. **3D Renderer Requirement**: Breezy Desktop must provide its own 3D renderer for XFCE4 that:
-   - Captures the desktop content (from the physical XR display)
+1. **No Built-in 3D Compositor**: These desktops use compositors that handle 2D window composition but do not have 3D rendering capabilities
+2. **Different Display Management**: They use RandR directly rather than Mutter's DisplayConfig D-Bus interface
+3. **Standalone 3D Renderer Requirement**: Breezy Desktop must provide its own standalone 3D renderer that:
+   - Captures the desktop content from virtual XR outputs (via DRM/KMS)
    - Applies 3D transformations (IMU-based head tracking, FOV calculations, display distance)
    - Renders the transformed content to the physical XR display
+   - Runs as a separate process, independent of the compositor
 
-#### XFCE4 Implementation Architecture
+#### Standalone Renderer Architecture
 
 **High-Performance C-Based Renderer**:
 
-For maximum FPS and best user experience, the XFCE4 renderer is implemented in **C with OpenGL**, not Python. This avoids:
+For maximum FPS and best user experience, the standalone renderer is implemented in **C with OpenGL**, not Python. This avoids:
 - Python GIL (Global Interpreter Lock) overhead
 - Python runtime overhead
 - Memory allocation inefficiencies
+
+**Why compositor-specific code cannot be reused**:
+- **GNOME's `virtualdisplayeffect.js`**: JavaScript code for Mutter's Cogl API - not usable in a standalone C binary
+- **KWin's QML/CurvableDisplayMesh.qml**: QML code for Qt Quick 3D - not usable in a standalone C binary
+- **Solution**: The renderer uses `modules/sombrero/Sombrero.frag` directly (same shader used by ReShade/Vulkan), avoiding code duplication
 
 **Architecture**:
 1. **Capture Thread**: Reads from virtual XR connector via DRM/KMS directly (no X11 screen capture like `XShmGetImage` or `XGetImage`)
@@ -772,9 +778,9 @@ For maximum FPS and best user experience, the XFCE4 renderer is implemented in *
 2. Initial calibration period (15 seconds for XREAL devices)
 3. Physical VR display marked as `non_desktop` via EDID (hidden from Display Settings)
 4. Virtual XR connector (XR-0) appears in same screen location
-5. XFCE compositor renders to virtual XR connector (off-screen buffer)
-6. Breezy renderer captures from virtual buffer via DRM/KMS
-7. Renderer applies 3D transformations (IMU head tracking) via GLSL shaders
+5. Desktop compositor (XFCE, i3, etc.) renders to virtual XR connector (off-screen buffer)
+6. Breezy standalone renderer captures from virtual buffer via DRM/KMS
+7. Renderer applies 3D transformations (IMU head tracking) via GLSL shaders (Sombrero.frag)
 8. Renderer outputs directly to physical AR glasses display
 
 **Key Performance Optimizations**:
@@ -784,23 +790,23 @@ For maximum FPS and best user experience, the XFCE4 renderer is implemented in *
 - No intermediate buffers where possible
 - Direct OpenGL context on AR glasses display
 
-#### XFCE4 Implementation Tasks
+#### Standalone Renderer Implementation Tasks
 
 **🚧 Immediate Priority**:
-- [x] C-based 3D renderer skeleton (replacing Python implementation)
-- [ ] DRM/KMS capture from virtual XR connector (no X11 screen capture)
-- [ ] GLSL shader port from `Sombrero.frag` 
-- [ ] IMU data reader from `/dev/shm/breezy_desktop_imu`
-- [ ] OpenGL context creation on AR glasses display
-- [ ] Virtual XR connector implementation in Xorg modesetting driver
-- [ ] Physical XR display `non_desktop` marking via EDID
-- [ ] XFCE4 backend integration with Breezy Desktop UI
-- [ ] Testing and validation on XFCE4
+- [x] C-based 3D renderer skeleton
+- [x] DRM/KMS capture from virtual XR connector (no X11 screen capture)
+- [x] GLSL shader loading from `modules/sombrero/Sombrero.frag` (no duplication - uses original file)
+- [x] IMU data reader from `/dev/shm/breezy_desktop_imu`
+- [x] OpenGL context creation on AR glasses display
+- [x] Virtual XR connector implementation in Xorg modesetting driver
+- [x] Physical XR display `non_desktop` marking via EDID
+- [ ] Backend integration with Breezy Desktop UI
+- [ ] Testing and validation on Xorg-based desktops
 
 **📋 Planned Enhancements**:
-- Multiple virtual displays support (XR-0, XR-1, etc.)
+- Multiple virtual displays support (XR-1, XR-2, etc.)
 - Dynamic resolution switching
-- Curved display support
+- Curved display support (mesh generation in C, similar to GNOME/KWin implementations)
 
 ### 7.2 Virtual XR Outputs in Xorg (XFCE4 Implementation)
 

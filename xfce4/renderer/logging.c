@@ -1,7 +1,7 @@
 /*
- * Simple logging utility for breezy XFCE4 renderer
+ * Simple logging utility for breezy standalone renderer
  * 
- * Logs to a file in XDG_STATE_HOME/breezy_xfce4/renderer.log
+ * Logs to a file in XDG_STATE_HOME/breezy_desktop/standalone_renderer.log
  */
 
 #include "logging.h"
@@ -29,14 +29,14 @@ int log_init(void) {
     char log_dir_path[512];
     
     if (state_home && state_home[0]) {
-        snprintf(log_dir_path, sizeof(log_dir_path), "%s/breezy_xfce4", state_home);
+        snprintf(log_dir_path, sizeof(log_dir_path), "%s/breezy_desktop", state_home);
     } else {
         const char *home = getenv("HOME");
         if (!home) {
             fprintf(stderr, "[LOG] Failed to get HOME directory\n");
             return -1;
         }
-        snprintf(log_dir_path, sizeof(log_dir_path), "%s/.local/state/breezy_xfce4", home);
+        snprintf(log_dir_path, sizeof(log_dir_path), "%s/.local/state/breezy_desktop", home);
     }
     
     // Create directory if it doesn't exist

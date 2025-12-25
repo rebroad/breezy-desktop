@@ -1,4 +1,6 @@
-# XFCE4 Renderer Implementation Status
+# Standalone Renderer Implementation Status
+
+**Note**: This renderer is not specific to XFCE4 - it works with any desktop environment/WM that uses Xorg (XFCE4, i3, Openbox, etc.). It's called "standalone" because it runs as a separate process, independent of the compositor.
 
 ## Completed ✅
 
@@ -155,7 +157,9 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 **Who does what:**
 - **XRLinuxDriver**: Provides IMU data and calibration state (does NOT create displays)
 - **breezy-desktop**: Creates XR-0 and starts renderer (after calibration completes)
-- **breezy_xfce4_renderer**: Captures from XR-0 and renders 3D content
+- **breezy_xfce4_renderer** (standalone binary): Captures from XR-0 and renders 3D content
+  - Works with any Xorg-based desktop/WM (XFCE4, i3, Openbox, etc.)
+  - Cannot use compositor-specific code (e.g., GNOME's `virtualdisplayeffect.js` or KWin's QML) because it's a standalone C binary
 
 **Integration steps:**
 
@@ -213,7 +217,7 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 - `xserver/test_xr_virtual.sh` - GNOME support, breezy-desktop workflow
 
 ### TODO Files (to be created):
-- `xfce4/renderer/shader_loader.c` - Load and compile Sombrero.frag
+- `xfce4/renderer/shader_loader.c` - Load and compile `modules/sombrero/Sombrero.frag` directly (no duplication)
 - `xfce4/renderer/imu_reader.c` - Parse IMU shared memory
 - `xfce4/renderer/opengl_context.c` - Create OpenGL context on AR display
 - `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c` - Virtual connector

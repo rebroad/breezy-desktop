@@ -1,7 +1,8 @@
 /*
- * Breezy Desktop XFCE4 3D Renderer
+ * Breezy Desktop Standalone 3D Renderer
  *
- * High-performance standalone renderer for XFCE4 virtual displays.
+ * High-performance standalone renderer for Xorg virtual XR displays.
+ * Works with any desktop environment/WM that uses Xorg (XFCE4, i3, Openbox, etc.).
  * Uses C + OpenGL for maximum FPS - avoids Python GIL and overhead.
  *
  * Architecture:
@@ -520,8 +521,15 @@ static int load_shaders(RenderThread *thread) {
     
     if (!frag_path) {
         log_error("[Shader] Sombrero.frag not found in any standard location\n");
+        log_error("[Shader] Tried paths:\n");
+        for (int i = 0; possible_paths[i]; i++) {
+            log_error("[Shader]   - %s\n", possible_paths[i]);
+        }
+        log_error("[Shader] Please ensure modules/sombrero/Sombrero.frag exists\n");
         return -1;
     }
+    
+    log_info("[Shader] Loading shader from: %s\n", frag_path);
     
     return load_sombrero_shaders(thread, frag_path);
 }
@@ -814,7 +822,7 @@ int main(int argc, char *argv[]) {
     renderer.virtual_framerate = atoi(argv[3]);
     renderer.render_refresh_rate = atoi(argv[4]);
     
-    log_info("Breezy XFCE4 Renderer starting\n");
+    log_info("Breezy Desktop Standalone Renderer starting\n");
     log_info("Virtual display: %dx%d@%dHz\n",
              renderer.virtual_width,
              renderer.virtual_height,

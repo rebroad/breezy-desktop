@@ -1,5 +1,5 @@
-#ifndef BREEZY_XFCE4_LOGGING_H
-#define BREEZY_XFCE4_LOGGING_H
+#ifndef BREEZY_STANDALONE_LOGGING_H
+#define BREEZY_STANDALONE_LOGGING_H
 
 #include <stdbool.h>
 
