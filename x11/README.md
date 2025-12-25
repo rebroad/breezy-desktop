@@ -55,14 +55,14 @@ From your `breezy-desktop` source tree:
 
 ```bash
 cd breezy-desktop/x11
-chmod +x bin/breezy_x11_setup
-./bin/breezy_x11_setup
+chmod +x bin/setup
+./bin/setup
 ```
 
 Or with a version number:
 
 ```bash
-./bin/breezy_x11_setup v1.0.0
+./bin/setup v1.0.0
 ```
 
 This will:
@@ -92,7 +92,7 @@ This will:
 
 - `src/x11_backend.py` - Main backend implementation (uses XR-Manager API)
 - `src/virtualdisplay_x11.py` - Legacy virtual display script (uses dummy driver, deprecated)
-- `bin/breezy_x11_setup` - Setup/installation script
+- `bin/setup` - Setup/installation script
 
 ## Implementation Details
 
