@@ -30,15 +30,19 @@ Based on code review of `drmmode_xr_virtual.c`:
 #### 1. **Mode Handling for Virtual Outputs** (Required)
 
 **What's needed:**
-- Virtual outputs should support dynamic resolution changes via RandR properties (XR_WIDTH, XR_HEIGHT, XR_REFRESH)
-- Mode lists for virtual outputs (fixed set of common resolutions: 1920x1080, 2560x1440, 3840x2160, etc.)
-- Mode setting callbacks that update framebuffer size when mode changes
+- Implement `drmmode_xr_virtual_crtc_set_mode_major` to handle standard RandR mode changes
+- When mode changes via `RRSetCrtcConfig` or standard RandR APIs, update the virtual output's framebuffer size
+- Ensure mode lists are properly reported for virtual outputs (fixed set of common resolutions: 1920x1080, 2560x1440, 3840x2160, etc.)
+- Resize off-screen framebuffers when mode changes (destroy old, create new at new resolution)
 
 **Why it's needed:**
-- Allows `breezy-desktop` to dynamically control the resolution of the virtual desktop
+- Allows `breezy-desktop` to dynamically control the resolution of the virtual desktop using standard RandR protocols
+- Users can resize virtual displays using standard X11 display tools (xrandr, display settings GUIs)
 - Essential for adapting to different AR content and user preferences
 
-**Reference:** `XORG_VIRTUAL_XR_API.md` lines 125-129
+**Current status:** `drmmode_xr_virtual_set_modes` creates modes, but `set_mode_major` callback needs implementation to handle framebuffer resizing
+
+**Reference:** Standard RandR mode-setting APIs (`RRSetCrtcConfig`, CRTC's `set_mode_major` callback)
 
 #### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Required)
 
@@ -92,7 +96,7 @@ After implementation, verify:
 4. ✅ AR mode toggle hides/shows physical XR connector correctly (`xrandr --output XR-Manager --set AR_MODE 1`)
 5. ✅ Physical XR connector is marked as `non_desktop` when appropriate
 6. 🚧 XR-0 framebuffer is accessible via DRM API (test with `breezy_x11_renderer`)
-7. 🚧 Mode changes via XR_WIDTH, XR_HEIGHT, XR_REFRESH properties work correctly
+7. 🚧 Mode changes via standard RandR APIs (xrandr --output XR-0 --mode) work correctly
 8. 🚧 DMA-BUF export provides zero-copy framebuffer access
 9. 🚧 End-to-end workflow: calibration → XR-0 creation → AR mode → renderer startup
 

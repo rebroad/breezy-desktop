@@ -906,7 +906,7 @@ For detailed API design and data structures, see `XORG_VIRTUAL_XR_API.md`.
 Virtual outputs are exposed through RandR:
 - They appear in `xrandr --listoutputs` as `XR-0`, `XR-1`, etc.
 - They are visible in Display Settings GUI (X11, GNOME)
-- They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
+- They support dynamic resolution changes via standard RandR mode-setting APIs (same as physical displays)
 
 **3. CRTC Assignment and Rendering Pipeline**
 
