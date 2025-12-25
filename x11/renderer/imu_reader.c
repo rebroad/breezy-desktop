@@ -5,7 +5,7 @@
  * Format matches XRLinuxDriver's shared memory layout
  */
 
-#include "breezy_xfce4_renderer.h"
+#include "breezy_x11_renderer.h"
 #include "logging.h"
 #include <sys/mman.h>
 #include <sys/stat.h>

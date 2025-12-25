@@ -1,5 +1,5 @@
 ---
-name: XFCE4 AR Support via Xorg Virtual XR Connector
+name: X11 AR Support via Xorg Virtual XR Connector
 overview: ""
 todos:
   - id: design-modesetting-xr-connector
@@ -11,32 +11,32 @@ todos:
     dependencies:
       - design-modesetting-xr-connector
   - id: wire-breezy-xfce-backend
-    content: Update Breezy XFCE4 backend to discover the virtual XR connector via XRandR and treat it as the virtual desktop plane for AR.
+    content: Update Breezy X11 backend to discover the virtual XR connector via XRandR and treat it as the virtual desktop plane for AR.
     status: pending
     dependencies:
       - impl-modesetting-xr-connector
-  - id: impl-xfce4-renderer
-    content: Complete the XFCE4 3D renderer to capture from the virtual XR connector surface, apply IMU-driven 3D transforms, and render to the XR output at the glasses refresh rate.
+  - id: impl-x11-renderer
+    content: Complete the X11 3D renderer to capture from the virtual XR connector surface, apply IMU-driven 3D transforms, and render to the XR output at the glasses refresh rate.
     status: pending
     dependencies:
       - wire-breezy-xfce-backend
   - id: integrate-breezy-ui
-    content: Hook the XFCE4 backend and AR mode into Breezy’s UI and lifecycle (start/stop AR, toggle AR mode, restore normal 2D mapping).
+    content: Hook the X11 backend and AR mode into Breezy’s UI and lifecycle (start/stop AR, toggle AR mode, restore normal 2D mapping).
     status: pending
     dependencies:
-      - impl-xfce4-renderer
+      - impl-x11-renderer
   - id: test-and-docs
-    content: Test end-to-end scenarios (normal 2D, extended, AR) and update Breezy and XFCE4-specific documentation for the new Xorg-based XR path.
+    content: Test end-to-end scenarios (normal 2D, extended, AR) and update Breezy and X11-specific documentation for the new Xorg-based XR path.
     status: pending
     dependencies:
       - integrate-breezy-ui
 ---
 
-# XFCE4 AR Support via Xorg Virtual XR Connector
+# X11 AR Support via Xorg Virtual XR Connector
 
 ## Overview
 
-Implement full Breezy Desktop support for XFCE4 on X11 by extending the Xorg modesetting driver with a RandR‑visible virtual XR connector and AR mode, and wiring Breezy’s XFCE4 backend and 3D renderer to use it. XFCE’s existing display tools should see the virtual connector as a normal monitor for layout, while Breezy’s renderer owns the actual AR/3D presentation on the XR glasses.
+Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modesetting driver with a RandR‑visible virtual XR connector and AR mode, and wiring Breezy’s X11 backend and 3D renderer to use it. XFCE’s existing display tools should see the virtual connector as a normal monitor for layout, while Breezy’s renderer owns the actual AR/3D presentation on the XR glasses.
 
 ## Plan
 
@@ -44,7 +44,7 @@ Implement full Breezy Desktop support for XFCE4 on X11 by extending the Xorg mod
 
 - **Mutter / GNOME**: Skim how Mutter models monitors and virtual displays (e.g. `MetaMonitorManager`, logical monitors, XR‑style outputs) to inform conceptual design, without copying code.
 - **Xorg modesetting driver**: Study `hw/xfree86/drivers/modesetting` to see how connectors, CRTCs, and RandR outputs are represented and exposed to clients.
-- **Current Breezy GNOME/KDE path**: Revisit how Breezy interacts with Mutter/KWin (IMU feed, virtual displays, shaders) so we can match capabilities on XFCE4.
+- **Current Breezy GNOME/KDE path**: Revisit how Breezy interacts with Mutter/KWin (IMU feed, virtual displays, shaders) so we can match capabilities on X11.
 
 ### 2. Design the Xorg virtual XR connector and AR mode
 
@@ -80,28 +80,28 @@ Implement full Breezy Desktop support for XFCE4 on X11 by extending the Xorg mod
 
 ### 5. Wire Breezy’s XFCE backend to the virtual XR connector
 
-- Update `breezy-desktop`’s XFCE4 backend to:
+- Update `breezy-desktop`’s X11 backend to:
 - Discover the virtual XR connector via XRandR (`XR-0`).
 - Read its geometry and placement, treating it as the **virtual desktop plane** for AR.
 - Define how Breezy maps XFCE’s **2D layout** into 3D:
 - The virtual connector rectangle becomes the content plane for AR rendering.
 - Breezy’s UI continues to manage AR‑specific properties (distance, curvature, follow mode) independently of XFCE.
 
-### 6. Implement / complete the XFCE4 3D renderer
+### 6. Implement / complete the X11 3D renderer
 
-- Use the existing skeleton in [`breezy-desktop/xfce4/renderer/breezy_xfce4_renderer.py`](breezy-desktop/xfce4/renderer/breezy_xfce4_renderer.py) (or C/C++ equivalent) to:
+- Use the existing skeleton in [`breezy-desktop/x11/renderer/breezy_x11_renderer.py`](breezy-desktop/x11/renderer/breezy_x11_renderer.py) (or C/C++ equivalent) to:
 - Implement an **X11 capture thread** that reads from the virtual XR connector’s framebuffer or associated surface.
 - Implement a **render thread** that:
     - Reads IMU data from `/dev/shm/breezy_desktop_imu`.
     - Applies 3D transforms using GLSL shaders and math ported from GNOME/KWin (`virtualdisplayeffect.js`, `math.js`).
     - Renders to the XR connector at the glasses refresh rate (60/72Hz) with VSync.
-- Ensure the renderer can run independently of GNOME/KWin and is fully driven by Breezy on XFCE4.
+- Ensure the renderer can run independently of GNOME/KWin and is fully driven by Breezy on X11.
 
 ### 7. Integrate with Breezy UI and lifecycle
 
-- Ensure `extensionsmanager.py` and `virtualdisplaymanager.py` load the XFCE4 backend when running under XFCE.
+- Ensure `extensionsmanager.py` and `virtualdisplaymanager.py` load the X11 backend when running under XFCE.
 - Implement lifecycle hooks so that:
-- Starting an AR session on XFCE4 enables the virtual XR connector (and AR mode if needed).
+- Starting an AR session on X11 enables the virtual XR connector (and AR mode if needed).
 - Stopping AR restores the normal 2D mapping (physical XR monitor visible again, virtual XR connector disabled).
 - Add configuration options in Breezy’s UI to:
 - Select AR vs normal mode.

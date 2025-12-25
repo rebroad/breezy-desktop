@@ -1,4 +1,4 @@
-# XFCE4 Xorg Virtual XR Connector & AR Mode Design
+# X11 Xorg Virtual XR Connector & AR Mode Design
 
 ## Goals
 
@@ -228,7 +228,7 @@ Breezy communicates **directly with Xorg** via the XRandR extension (no intermed
 
 ### Breezy Integration
 
-Breezy's XFCE4 backend (`xfce4/src/xfce4_backend.py`) will use Python XRandR bindings (e.g., `python-xlib` or `xcb`) or subprocess to `xrandr`:
+Breezy's X11 backend (`x11/src/x11_backend.py`) will use Python XRandR bindings (e.g., `python-xlib` or `xcb`) or subprocess to `xrandr`:
 
 1. **Check availability**:
    ```python

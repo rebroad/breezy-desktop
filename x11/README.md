@@ -1,10 +1,10 @@
-# Breezy Desktop XFCE4 Backend
+# Breezy Desktop X11 Backend
 
-This directory contains the XFCE4 backend for Breezy Desktop, enabling virtual display creation and management on XFCE4 desktop environments.
+This directory contains the X11 backend for Breezy Desktop, enabling virtual display creation and management on X11 desktop environments.
 
 ## Overview
 
-Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's compositor APIs), XFCE4 doesn't have built-in compositor APIs for creating virtual displays. This backend uses **virtual XR outputs** in the Xorg modesetting driver to enable efficient virtual display creation.
+Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's compositor APIs), X11 doesn't have built-in compositor APIs for creating virtual displays. This backend uses **virtual XR outputs** in the Xorg modesetting driver to enable efficient virtual display creation.
 
 ## Architecture
 
@@ -34,14 +34,14 @@ Virtual XR outputs solve these issues:
 **🚧 In Progress:**
 - Virtual CRTC creation for virtual outputs (prerequisite)
 - Physical XR display detection and hiding via EDID (prerequisite)
-- XFCE4 backend implementation
-- 3D renderer for XFCE4 (reading from virtual outputs, applying transformations, rendering to physical XR display)
+- X11 backend implementation
+- 3D renderer for X11 (reading from virtual outputs, applying transformations, rendering to physical XR display)
 
 See [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) for detailed technical documentation.
 
 ## Prerequisites
 
-- XFCE4 session running on **X11**
+- X11 session running on **X11**
 - **Xorg with virtual XR output support** (modesetting driver with virtual CRTCs)
 - Tools:
   - `xrandr` – X11 display management
@@ -49,25 +49,25 @@ See [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) for detailed tech
 
 **Note:** The old dummy driver approach is no longer recommended. Virtual XR outputs in the modesetting driver provide better integration and functionality.
 
-## XFCE4 Backend Setup
+## X11 Backend Setup
 
 From your `breezy-desktop` source tree:
 
 ```bash
 cd breezy-desktop
-chmod +x xfce4/bin/breezy_xfce4_setup
-./xfce4/bin/breezy_xfce4_setup
+chmod +x x11/bin/breezy_x11_setup
+./x11/bin/breezy_x11_setup
 ```
 
 This will:
 
-- Install a `virtualdisplay_xfce4` launcher into `~/.local/bin`.
-- Register the `breezy-desktop` source tree with your user `site-packages` via a `.pth` file, so the XFCE4 backend can be imported.
+- Install a `virtualdisplay_x11` launcher into `~/.local/bin`.
+- Register the `breezy-desktop` source tree with your user `site-packages` via a `.pth` file, so the X11 backend can be imported.
 - Verify basic dependencies (`xrandr`, `cvt`, `python3`) are available.
 
 ## Usage (Once Implementation is Complete)
 
-- Launch Breezy Desktop from the applications menu while running XFCE4 on X11.
+- Launch Breezy Desktop from the applications menu while running X11 on X11.
 - Breezy will:
   - Create virtual XR outputs (XR-0, XR-1, etc.) via RandR
   - Hide the physical XR display from Display Settings
@@ -77,9 +77,9 @@ This will:
 
 ## Architecture
 
-- `src/xfce4_backend.py` - Main backend implementation
-- `src/virtualdisplay_xfce4.py` - Virtual display creation script
-- `bin/breezy_xfce4_setup` - Installation script
+- `src/x11_backend.py` - Main backend implementation
+- `src/virtualdisplay_x11.py` - Virtual display creation script
+- `bin/breezy_x11_setup` - Installation script
 
 ## Implementation Details
 
@@ -89,9 +89,9 @@ For detailed technical information about the virtual XR outputs implementation, 
 
 ## Future Improvements
 
-Potential improvements for better XFCE4 support:
+Potential improvements for better X11 support:
 
-1. **Wayland Support:** If XFCE4 gains Wayland support, we could use PipeWire virtual displays
+1. **Wayland Support:** If X11 gains Wayland support, we could use PipeWire virtual displays
 2. **Multiple Virtual Displays:** Support for XR-0, XR-1, etc. for multi-monitor setups
 3. **Dynamic Resolution Switching:** Allow changing virtual output resolution on the fly
 

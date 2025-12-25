@@ -3,7 +3,7 @@
  * Uses Sombrero.frag directly (it's already GLSL-compatible)
  */
 
-#include "breezy_xfce4_renderer.h"
+#include "breezy_x11_renderer.h"
 #include "logging.h"
 #include <stdio.h>
 #include <stdlib.h>

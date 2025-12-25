@@ -26,7 +26,7 @@
 - ⚠️ **Protocol Overhead**: D-Bus + PipeWire protocol adds some latency
 - ⚠️ **Mutter-Specific**: Requires Mutter's ScreenCast D-Bus API (GNOME only)
 
-## DRM/KMS Direct Access (Our XFCE4 Approach)
+## DRM/KMS Direct Access (Our X11 Approach)
 
 ### How It Works (Current Implementation):
 1. **Virtual Connector Created**: Xorg modesetting driver creates virtual XR connector (XR-0) with off-screen framebuffer
@@ -107,19 +107,19 @@ Technically possible but **not recommended** because:
 | **Hardware Accel** | Yes (DMA-BUF) | Possible (but more complex) |
 | **Best For** | When Mutter available | When creating our own virtual connector |
 
-## Can We Use PipeWire in XFCE4?
+## Can We Use PipeWire in X11?
 
 ### Option 1: Create Our Own ScreenCast-like Service
 **Feasibility**: Possible but complex
 - Would need to implement D-Bus service similar to Mutter's ScreenCast
-- Would need to integrate with XFCE4 compositor
+- Would need to integrate with X11 compositor
 - Would need to create PipeWire streams from XR connector framebuffers
 - **Complexity**: High
 - **Benefit**: Could match GNOME's approach
 
 ### Option 2: Use PipeWire Lower-Level APIs Directly
 **Feasibility**: Moderate
-- XFCE4 has PipeWire available as a system service
+- X11 has PipeWire available as a system service
 - Could use `libpipewire` to create streams from our virtual connector
 - Would still need to integrate framebuffer → PipeWire stream
 - **Complexity**: Medium-High
@@ -136,7 +136,7 @@ Technically possible but **not recommended** because:
 
 ## Recommendation: DRM/KMS Direct with DMA-BUF Optimization
 
-For our use case (XFCE4 + custom virtual connector in Xorg driver), **DRM/KMS direct access is the better choice** because:
+For our use case (X11 + custom virtual connector in Xorg driver), **DRM/KMS direct access is the better choice** because:
 
 1. **We Own the Virtual Connector**: Since we're creating it in the Xorg driver, we have full control and can optimize access patterns
 

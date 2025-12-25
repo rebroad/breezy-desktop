@@ -1,20 +1,20 @@
 ---
-name: Adapt Breezy Desktop for XFCE4 with 3D Rendering
-overview: Adapt breezy-desktop to support XFCE4 on X11 by (1) extending the Xorg modesetting driver with a virtual XR connector and AR mode that can hide the physical glasses output from the XRandR 2D map, and (2) rendering virtual desktops in 3D space on AR glasses via a standalone Breezy OpenGL renderer that consumes those virtual surfaces and IMU data from XRLinuxDriver.
+name: Adapt Breezy Desktop for X11 with 3D Rendering
+overview: Adapt breezy-desktop to support X11 on X11 by (1) extending the Xorg modesetting driver with a virtual XR connector and AR mode that can hide the physical glasses output from the XRandR 2D map, and (2) rendering virtual desktops in 3D space on AR glasses via a standalone Breezy OpenGL renderer that consumes those virtual surfaces and IMU data from XRLinuxDriver.
 todos:
   - id: research_3d_rendering
     content: "Research 3D rendering requirements: study GNOME/KDE shader code, design standalone renderer architecture, choose implementation language (Python vs C/C++)"
     status: completed
-  - id: create_xfce4_backend_structure
-    content: Create breezy-desktop/xfce4/ directory structure (src/, renderer/, bin/) and backend interface files
+  - id: create_x11_backend_structure
+    content: Create breezy-desktop/x11/ directory structure (src/, renderer/, bin/) and backend interface files
     status: completed
     dependencies:
       - research_3d_rendering
   - id: implement_virtual_display_creation
-    content: Implement virtual display creation for XFCE4 by extending the Xorg modesetting driver with a virtual XR connector (seen by XRandR as a normal monitor) backed by off-screen surfaces, with no XRandR/dummy-driver hack
+    content: Implement virtual display creation for X11 by extending the Xorg modesetting driver with a virtual XR connector (seen by XRandR as a normal monitor) backed by off-screen surfaces, with no XRandR/dummy-driver hack
     status: pending
     dependencies:
-      - create_xfce4_backend_structure
+      - create_x11_backend_structure
   - id: design_xorg_virtual_connector
     content: Research Xorg modesetting driver (hw/xfree86/drivers/modesetting) and Mutter's monitor stack to design a virtual XR connector that appears as an XRandR output but can be driven by Breezy's 3D renderer and, in AR mode, hides the physical XReal glasses connector from the 2D desktop map
     status: pending
@@ -24,15 +24,15 @@ todos:
     content: "Implement standalone 3D renderer with multi-threaded architecture: non-blocking X11 screen capture thread, render thread matching glasses refresh rate, thread-safe frame buffer, IMU data reading, GLSL shader porting, OpenGL rendering to AR glasses display"
     status: pending
     dependencies:
-      - create_xfce4_backend_structure
+      - create_x11_backend_structure
   - id: integrate_with_ui
-    content: Integrate XFCE4 backend with breezy-desktop UI (detection, display management, renderer lifecycle)
+    content: Integrate X11 backend with breezy-desktop UI (detection, display management, renderer lifecycle)
     status: pending
     dependencies:
       - implement_virtual_display_creation
       - implement_3d_renderer
   - id: update_build_system
-    content: Add XFCE4 backend to build system, create installation scripts, update documentation
+    content: Add X11 backend to build system, create installation scripts, update documentation
     status: pending
     dependencies:
       - integrate_with_ui
@@ -43,7 +43,7 @@ todos:
       - update_build_system
 ---
 
-# Adapt Breezy Desktop for XFCE4 with 3D Rendering
+# Adapt Breezy Desktop for X11 with 3D Rendering
 
 ## Critical Requirement: 3D Transformations
 
@@ -57,9 +57,9 @@ todos:
 - Compositor renders displays directly to AR glasses display (which is just a regular monitor)
 - XRLinuxDriver provides IMU data but doesn't do the rendering
 
-**For XFCE4:**
+**For X11:**
 
-- XFCE4 doesn't have compositor APIs for 3D rendering
+- X11 doesn't have compositor APIs for 3D rendering
 - We need a **standalone 3D rendering application** that:
 
 1. Captures virtual display content (X11 screen capture)
@@ -82,7 +82,7 @@ todos:
         │                             │
         ▼                             ▼
 ┌───────────────┐          ┌─────────────────────────────────┐
-│  XFCE4 Backend│          │      3D Renderer App            │
+│  X11 Backend│          │      3D Renderer App            │
 │  (Python)     │          │  (C/C++ or Python + PyOpenGL)   │
 │               │          │                                 │
 │  - Creates    │          │  ┌────────────────────────────┐ │
@@ -162,40 +162,40 @@ todos:
 - `breezy-desktop/gnome/src/devicedatastream.js` - IMU data reading
 - `breezy-desktop/kwin/src/breezydesktopeffect.cpp` - KDE implementation
 
-### Phase 2: Create XFCE4 Backend Structure
+### Phase 2: Create X11 Backend Structure
 
-**Goal:** Create `breezy-desktop/xfce4/` directory structure
+**Goal:** Create `breezy-desktop/x11/` directory structure
 
 **Tasks:**
 
 1. Create directory structure:
 
-- `breezy-desktop/xfce4/src/` - Backend implementation
-- `breezy-desktop/xfce4/renderer/` - 3D renderer application
-- `breezy-desktop/xfce4/bin/` - Setup/install scripts
+- `breezy-desktop/x11/src/` - Backend implementation
+- `breezy-desktop/x11/renderer/` - 3D renderer application
+- `breezy-desktop/x11/bin/` - Setup/install scripts
 
 2. Create virtual display creation module:
 
-- `breezy-desktop/xfce4/src/virtualdisplay_xfce4.py` - Virtual display creation via xrandr
-- `breezy-desktop/xfce4/src/xfce4_backend.py` - Backend interface
+- `breezy-desktop/x11/src/virtualdisplay_x11.py` - Virtual display creation via xrandr
+- `breezy-desktop/x11/src/x11_backend.py` - Backend interface
 
 3. Create 3D renderer application:
 
-- `breezy-desktop/xfce4/renderer/breezy_xfce4_renderer.c` (or `.py`)
-- `breezy-desktop/xfce4/renderer/shaders/` - GLSL shader files
+- `breezy-desktop/x11/renderer/breezy_x11_renderer.c` (or `.py`)
+- `breezy-desktop/x11/renderer/shaders/` - GLSL shader files
 
 **Files to create:**
 
-- `breezy-desktop/xfce4/src/xfce4_backend.py`
-- `breezy-desktop/xfce4/src/virtualdisplay_xfce4.py`
-- `breezy-desktop/xfce4/renderer/breezy_xfce4_renderer.c` (or `.py`)
-- `breezy-desktop/xfce4/renderer/shaders/vertex.glsl`
-- `breezy-desktop/xfce4/renderer/shaders/fragment.glsl`
-- `breezy-desktop/xfce4/bin/breezy_xfce4_setup`
+- `breezy-desktop/x11/src/x11_backend.py`
+- `breezy-desktop/x11/src/virtualdisplay_x11.py`
+- `breezy-desktop/x11/renderer/breezy_x11_renderer.c` (or `.py`)
+- `breezy-desktop/x11/renderer/shaders/vertex.glsl`
+- `breezy-desktop/x11/renderer/shaders/fragment.glsl`
+- `breezy-desktop/x11/bin/breezy_x11_setup`
 
 ### Phase 3: Implement Virtual Display Creation
 
-**Goal:** Create virtual displays on XFCE4 using xrandr, with RANDR/X11 as the source of truth
+**Goal:** Create virtual displays on X11 using xrandr, with RANDR/X11 as the source of truth
 
 **Tasks:**
 
@@ -219,7 +219,7 @@ todos:
 
 **Implementation:**
 
-- Use xrandr to create and manage modes on the dummy output (similar to existing `virtualdisplay_xfce4.py`)
+- Use xrandr to create and manage modes on the dummy output (similar to existing `virtualdisplay_x11.py`)
 - Store display metadata (width, height, position, ID) in JSON only as auxiliary state (e.g. PIDs and settings), not as the authority on whether a display really exists
 - Treat RANDR/X11 as the single source of truth for which virtual displays/modes are active
 - Communicate with renderer via IPC (shared memory or D-Bus)
@@ -334,29 +334,29 @@ todos:
 
 **Files to create/modify:**
 
-- `breezy-desktop/xfce4/renderer/breezy_xfce4_renderer.c` (or `.py`)
-- `breezy-desktop/xfce4/renderer/capture_thread.c` (or `.py`)
-- `breezy-desktop/xfce4/renderer/render_thread.c` (or `.py`)
-- `breezy-desktop/xfce4/renderer/frame_buffer.c` (or `.py`) - Thread-safe frame buffer
-- `breezy-desktop/xfce4/renderer/shaders/vertex.glsl` - **Port from `virtualdisplayeffect.js` (lines 489-538)**
-- `breezy-desktop/xfce4/renderer/shaders/fragment.glsl` - Port from KWin's `cursorOverlay.frag`
-- `breezy-desktop/xfce4/renderer/math_utils.c` (or `.py`) - **Port math functions from `math.js`**
-- `breezy-desktop/xfce4/renderer/imu_reader.c` (or `.py`)
+- `breezy-desktop/x11/renderer/breezy_x11_renderer.c` (or `.py`)
+- `breezy-desktop/x11/renderer/capture_thread.c` (or `.py`)
+- `breezy-desktop/x11/renderer/render_thread.c` (or `.py`)
+- `breezy-desktop/x11/renderer/frame_buffer.c` (or `.py`) - Thread-safe frame buffer
+- `breezy-desktop/x11/renderer/shaders/vertex.glsl` - **Port from `virtualdisplayeffect.js` (lines 489-538)**
+- `breezy-desktop/x11/renderer/shaders/fragment.glsl` - Port from KWin's `cursorOverlay.frag`
+- `breezy-desktop/x11/renderer/math_utils.c` (or `.py`) - **Port math functions from `math.js`**
+- `breezy-desktop/x11/renderer/imu_reader.c` (or `.py`)
 
 ### Phase 5: Integrate with Breezy Desktop UI
 
-**Goal:** Make XFCE4 backend work with existing breezy-desktop UI
+**Goal:** Make X11 backend work with existing breezy-desktop UI
 
 **Tasks:**
 
-1. Update UI to detect XFCE4:
+1. Update UI to detect X11:
 
 - Already done in `extensionsmanager.py`
-- Load XFCE4 backend instead of GNOME/KDE
+- Load X11 backend instead of GNOME/KDE
 
 2. Integrate virtual display management:
 
-- Update `virtualdisplaymanager.py` to use XFCE4 backend
+- Update `virtualdisplaymanager.py` to use X11 backend
 - Start/stop 3D renderer application
 - Handle display creation/destruction
 
@@ -374,7 +374,7 @@ todos:
 
 ### Phase 6: Update Build and Installation
 
-**Goal:** Add XFCE4 support to build system and installation scripts
+**Goal:** Add X11 support to build system and installation scripts
 
 **Tasks:**
 
@@ -386,20 +386,20 @@ todos:
 
 2. Create installation script:
 
-- `breezy-desktop/xfce4/bin/breezy_xfce4_setup`
+- `breezy-desktop/x11/bin/breezy_x11_setup`
 - Install dependencies (OpenGL, X11, etc.)
 - Build/install renderer application
 
 3. Update documentation:
 
-- Add XFCE4 setup instructions
+- Add X11 setup instructions
 - Document 3D rendering architecture
 - Document limitations/differences
 
 **Files to modify:**
 
-- `breezy-desktop/README.md` - Add XFCE4 section
-- `breezy-desktop/xfce4/README.md` - Document architecture
+- `breezy-desktop/README.md` - Add X11 section
+- `breezy-desktop/x11/README.md` - Document architecture
 - Build system files (meson.build, CMakeLists.txt, etc.)
 
 ## Key Technical Challenges
@@ -427,8 +427,8 @@ todos:
 
 **Phase 1 (2D Apps):**
 
-- ✅ Can create virtual displays on XFCE4
-- ✅ Virtual displays appear in XFCE4 desktop environment
+- ✅ Can create virtual displays on X11
+- ✅ Virtual displays appear in X11 desktop environment
 - ✅ **Virtual displays render in 3D space in AR glasses** (CRITICAL)
 - ✅ Follow mode works (display can be fixed or follow head)
 - ✅ All XR driver controls work (distance, widescreen, etc.)
@@ -539,11 +539,11 @@ todos:
 
 ## Architecture Clarification: Compositor vs. Specialized Renderer
 
-**Important Distinction:** We are NOT building a full compositor replacement. We're building a specialized 3D renderer that works alongside XFCE4's existing compositor.
+**Important Distinction:** We are NOT building a full compositor replacement. We're building a specialized 3D renderer that works alongside X11's existing compositor.
 
-### XFCE4's Existing Compositor (Xfwm4)
+### X11's Existing Compositor (Xfwm4)
 
-- **XFCE4 DOES have a compositor** - it's called Xfwm4 (XFCE Window Manager)
+- **X11 DOES have a compositor** - it's called Xfwm4 (XFCE Window Manager)
 - It handles normal desktop compositing (shadows, transparency, window effects)
 - It's lightweight and designed for traditional 2D desktop use
 - It does NOT have:
@@ -586,7 +586,7 @@ todos:
 - Build a specialized, lightweight renderer from scratch
 - Focused only on AR glasses rendering (not full desktop compositing)
 - Can be simpler and more maintainable than extracting from Mutter/KWin
-- Designed specifically for XFCE4's architecture
+- Designed specifically for X11's architecture
 
 ### The "Foolish" Question: Should We Just Use GNOME?
 
@@ -597,10 +597,10 @@ todos:
 - ✅ Less development work
 - ✅ More stable (already tested)
 
-**Arguments FOR building for XFCE4:**
+**Arguments FOR building for X11:**
 
-- ✅ You prefer XFCE4's workflow/UI/philosophy
-- ✅ XFCE4 is lighter weight
+- ✅ You prefer X11's workflow/UI/philosophy
+- ✅ X11 is lighter weight
 - ✅ More control over the implementation
 - ✅ Specialized solution can be optimized for AR glasses use case
 - ✅ Not tied to GNOME's architecture decisions
@@ -608,5 +608,5 @@ todos:
 **The Reality:**
 
 - If you're happy with GNOME, use GNOME - it's the path of least resistance
-- If you prefer XFCE4, building a specialized renderer is reasonable
+- If you prefer X11, building a specialized renderer is reasonable
 - The specialized renderer can be simpler than a full compositor

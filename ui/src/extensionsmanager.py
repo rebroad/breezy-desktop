@@ -11,7 +11,7 @@ def detect_desktop_environment():
     session = os.environ.get('XDG_SESSION_DESKTOP', '').lower()
 
     if 'xfce' in desktop or 'xfce' in session:
-        return 'xfce4'
+        return 'x11'
     elif 'gnome' in desktop or 'gnome' in session:
         return 'gnome'
     elif 'kde' in desktop or 'plasma' in desktop or 'kde' in session:
@@ -22,7 +22,7 @@ def detect_desktop_environment():
         import subprocess
         result = subprocess.run(['pgrep', '-x', 'xfce4-session'], capture_output=True)
         if result.returncode == 0:
-            return 'xfce4'
+            return 'x11'
         result = subprocess.run(['pgrep', '-x', 'gnome-session'], capture_output=True)
         if result.returncode == 0:
             return 'gnome'
@@ -63,8 +63,8 @@ class ExtensionsManager(GObject.GObject):
             except Exception as e:
                 # GNOME Shell not available
                 self.remote_extension_state = False
-        elif self.desktop_env == 'xfce4':
-            # XFCE4 doesn't use extensions, backend is always "enabled" if available
+        elif self.desktop_env == 'x11':
+            # X11-based desktops don't use extensions, backend is always "enabled" if available
             self.remote_extension_state = True
         else:
             self.remote_extension_state = False
@@ -75,11 +75,11 @@ class ExtensionsManager(GObject.GObject):
             self.set_property('breezy-enabled', self.remote_extension_state)
 
     def is_installed(self):
-        if self.desktop_env == 'xfce4':
-            # For XFCE4, check if backend is available
+        if self.desktop_env == 'x11':
+            # For X11-based desktops, check if backend is available
             try:
-                from breezydesktop.xfce4 import XFCE4Backend
-                backend = XFCE4Backend()
+                from breezydesktop.x11 import X11Backend
+                backend = X11Backend()
                 return backend.is_available()
             except ImportError:
                 return False
@@ -91,20 +91,20 @@ class ExtensionsManager(GObject.GObject):
     def enable(self):
         if self.desktop_env == 'gnome':
             self._enable_extension(BREEZY_DESKTOP_UUID)
-        elif self.desktop_env == 'xfce4':
-            # XFCE4 backend doesn't need enabling, just mark as enabled
+        elif self.desktop_env == 'x11':
+            # X11 backend doesn't need enabling, just mark as enabled
             self.remote_extension_state = True
             self.set_property('breezy-enabled', True)
 
     def disable(self):
         if self.desktop_env == 'gnome':
             self._disable_extension(BREEZY_DESKTOP_UUID)
-        elif self.desktop_env == 'xfce4':
+        elif self.desktop_env == 'x11':
             self.remote_extension_state = False
             self.set_property('breezy-enabled', False)
 
     def is_enabled(self):
-        if self.desktop_env == 'xfce4':
+        if self.desktop_env == 'x11':
             return self.remote_extension_state
         elif self.desktop_env == 'gnome':
             return self._is_enabled(BREEZY_DESKTOP_UUID)

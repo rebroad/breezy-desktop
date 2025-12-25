@@ -6,7 +6,7 @@
  */
 
 #define _POSIX_C_SOURCE 200809L  // for O_CLOEXEC
-#include "breezy_xfce4_renderer.h"
+#include "breezy_x11_renderer.h"
 #include "logging.h"
 #include <xf86drm.h>
 #include <xf86drmMode.h>

@@ -2,11 +2,11 @@
 
 set -e
 
-echo "Setting up Breezy Desktop for XFCE4..."
+echo "Setting up Breezy Desktop for X11/Xorg..."
 
-# Check if running on XFCE4
-if [ -z "$XDG_CURRENT_DESKTOP" ] || [[ ! "$XDG_CURRENT_DESKTOP" =~ [Xx][Ff][Cc][Ee] ]]; then
-    echo "Warning: This setup script is for XFCE4. Current desktop: $XDG_CURRENT_DESKTOP"
+# Check if running on X11
+if [ -z "$XDG_SESSION_TYPE" ] || [[ ! "$XDG_SESSION_TYPE" =~ [Xx]11 ]]; then
+    echo "Warning: This setup script is for X11/Xorg. Current session: $XDG_SESSION_TYPE"
     read -p "Continue anyway? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then

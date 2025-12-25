@@ -5,7 +5,7 @@
  * Uses GLX for X11-based rendering or EGL for direct DRM access
  */
 
-#include "breezy_xfce4_renderer.h"
+#include "breezy_x11_renderer.h"
 #include "logging.h"
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>

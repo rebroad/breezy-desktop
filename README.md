@@ -16,9 +16,9 @@ There are two installations available. **Note: Don't manually install either of 
 
 ## Breezy Desktop
 
-Breezy Desktop is a virtual workspace solution for Linux desktops that use the KDE Plasma 6, GNOME desktop environments (versions 42 through 49), or XFCE4. It supports launching multiple virtual monitors alongside multiple physical monitors. For Linux users not running GNOME, KDE, or XFCE4, you can play around with a [nested GNOME setup](#nested-gnome-setup).
+Breezy Desktop is a virtual workspace solution for Linux desktops that use the KDE Plasma 6, GNOME desktop environments (versions 42 through 49), or X11. It supports launching multiple virtual monitors alongside multiple physical monitors. For Linux users not running GNOME, KDE, or X11, you can play around with a [nested GNOME setup](#nested-gnome-setup).
 
-**Note:** XFCE4 support has limitations - see [XFCE4 Setup](#xfce4-setup) for details.
+**Note:** X11 support has limitations - see [X11 Setup](#x11-setup) for details.
 
 For the best performance, ensure you have the latest graphics drivers installed for your distro.
 
@@ -74,13 +74,13 @@ Breezy GNOME is in AUR (but not pacman, yet). To install, run these commands fro
 2. Run the setup script: `~/Downloads/breezy_gnome_setup --tag legacy`
 3. Log out and back in, then proceed to [usage](#breezy-gnome-usage).
 
-### XFCE4 Setup
+### X11 Setup
 
-Breezy Desktop has **experimental support** for XFCE4 on X11. Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's compositor APIs), XFCE4 requires virtual XR outputs in the Xorg modesetting driver.
+Breezy Desktop has **experimental support** for X11 on X11. Unlike GNOME (which uses Mutter's overlay approach) and KDE (which uses KWin's compositor APIs), X11 requires virtual XR outputs in the Xorg modesetting driver.
 
-**Current Status:** Implementation is in progress. Virtual CRTC creation and XFCE4 backend/3D renderer work is ongoing.
+**Current Status:** Implementation is in progress. Virtual CRTC creation and X11 backend/3D renderer work is ongoing.
 
-For detailed setup instructions, architecture information, and current limitations, see [`xfce4/README.md`](xfce4/README.md).
+For detailed setup instructions, architecture information, and current limitations, see [`x11/README.md`](x11/README.md).
 
 For comprehensive technical documentation, see [`BREEZY_X11_TECHNICAL.md`](BREEZY_X11_TECHNICAL.md).
 

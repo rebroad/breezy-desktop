@@ -1,6 +1,6 @@
 # Standalone Renderer Implementation Status
 
-**Note**: This renderer is not specific to XFCE4 - it works with any desktop environment/WM that uses Xorg (XFCE4, i3, Openbox, etc.). It's called "standalone" because it runs as a separate process, independent of the compositor.
+**Note**: This renderer is not specific to X11 - it works with any desktop environment/WM that uses Xorg (X11, i3, Openbox, etc.). It's called "standalone" because it runs as a separate process, independent of the compositor.
 
 ## Completed ✅
 
@@ -96,10 +96,10 @@
 5. **Note**: In production, breezy-desktop will create XR-0 automatically after calibration
 
 ### Phase 2: Capture Testing
-1. Build renderer: `cd xfce4/renderer && make`
+1. Build renderer: `cd x11/renderer && make`
 2. Run with test mode (will fail until virtual connector exists):
    ```bash
-   ./breezy_xfce4_renderer 1920 1080 60 90
+   ./breezy_x11_renderer 1920 1080 60 90
    ```
 3. Verify DRM device detection works
 4. Test frame capture once connector is available
@@ -117,7 +117,7 @@
 4. **breezy-desktop requests XR-0 creation** via XR-Manager
 5. Physical display marked non-desktop (via EDID or RandR property)
 6. Virtual connector XR-0 appears in xrandr
-7. **breezy-desktop starts renderer** (spawns breezy_xfce4_renderer process)
+7. **breezy-desktop starts renderer** (spawns breezy_x11_renderer process)
 8. Renderer captures from XR-0
 9. 3D rendering to physical display works
 10. **Important**: Renderer must NOT start before calibration completes (potential drift otherwise)
@@ -157,8 +157,8 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 **Who does what:**
 - **XRLinuxDriver**: Provides IMU data and calibration state (does NOT create displays)
 - **breezy-desktop**: Creates XR-0 and starts renderer (after calibration completes)
-- **breezy_xfce4_renderer** (standalone binary): Captures from XR-0 and renders 3D content
-  - Works with any Xorg-based desktop/WM (XFCE4, i3, Openbox, etc.)
+- **breezy_x11_renderer** (standalone binary): Captures from XR-0 and renders 3D content
+  - Works with any Xorg-based desktop/WM (X11, i3, Openbox, etc.)
   - Cannot use compositor-specific code (e.g., GNOME's `virtualdisplayeffect.js` or KWin's QML) because it's a standalone C binary
 
 **Integration steps:**
@@ -183,7 +183,7 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 3. **Renderer Startup**: breezy-desktop spawns renderer process:
    ```python
    renderer_process = subprocess.Popen(
-       ['breezy_xfce4_renderer', '1920', '1080', '60', '90'],
+       ['breezy_x11_renderer', '1920', '1080', '60', '90'],
        start_new_session=True
    )
    ```
@@ -196,29 +196,29 @@ The renderer is **NOT** a standalone tool - it must be integrated with breezy-de
 
 **Implementation Location**: 
 - `ui/src/virtualdisplaymanager.py` - Already spawns virtual display processes (could be extended)
-- Or new XFCE4-specific integration code
+- Or new X11-specific integration code
 
 ## Files Created/Modified
 
 ### New Files:
-- `xfce4/renderer/breezy_xfce4_renderer.c` - Main renderer (standalone binary)
-- `xfce4/renderer/breezy_xfce4_renderer.h` - Header
-- `xfce4/renderer/drm_capture.c` - DRM/KMS capture
-- `xfce4/renderer/imu_reader.c` - IMU data reader
-- `xfce4/renderer/shader_loader.c` - Shader loading
-- `xfce4/renderer/opengl_context.c` - OpenGL context creation
-- `xfce4/renderer/Makefile` - Build system
-- `xfce4/renderer/IMPLEMENTATION_STATUS.md` - This file
-- `xfce4/renderer/TESTING_GUIDE.md` - Testing instructions
-- `xfce4/renderer/PIPEWIRE_VS_DRM.md` - Architecture comparison
+- `x11/renderer/breezy_x11_renderer.c` - Main renderer (standalone binary)
+- `x11/renderer/breezy_x11_renderer.h` - Header
+- `x11/renderer/drm_capture.c` - DRM/KMS capture
+- `x11/renderer/imu_reader.c` - IMU data reader
+- `x11/renderer/shader_loader.c` - Shader loading
+- `x11/renderer/opengl_context.c` - OpenGL context creation
+- `x11/renderer/Makefile` - Build system
+- `x11/renderer/IMPLEMENTATION_STATUS.md` - This file
+- `x11/renderer/TESTING_GUIDE.md` - Testing instructions
+- `x11/renderer/PIPEWIRE_VS_DRM.md` - Architecture comparison
 
 ### Modified Files:
 - `BREEZY_X11_TECHNICAL.md` - Updated architecture docs
 - `xserver/test_xr_virtual.sh` - GNOME support, breezy-desktop workflow
 
 ### TODO Files (to be created):
-- `xfce4/renderer/shader_loader.c` - Load and compile `modules/sombrero/Sombrero.frag` directly (no duplication)
-- `xfce4/renderer/imu_reader.c` - Parse IMU shared memory
-- `xfce4/renderer/opengl_context.c` - Create OpenGL context on AR display
+- `x11/renderer/shader_loader.c` - Load and compile `modules/sombrero/Sombrero.frag` directly (no duplication)
+- `x11/renderer/imu_reader.c` - Parse IMU shared memory
+- `x11/renderer/opengl_context.c` - Create OpenGL context on AR display
 - `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c` - Virtual connector
 

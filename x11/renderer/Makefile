@@ -13,8 +13,8 @@ LDFLAGS += $(shell pkg-config --libs egl)
 LDFLAGS += -lX11 -lXext
 LDFLAGS += $(shell pkg-config --libs libdrm 2>/dev/null || echo "-ldrm")
 
-TARGET = breezy_xfce4_renderer
-SOURCES = breezy_xfce4_renderer.c drm_capture.c imu_reader.c shader_loader.c opengl_context.c logging.c
+TARGET = breezy_x11_renderer
+SOURCES = breezy_x11_renderer.c drm_capture.c imu_reader.c shader_loader.c opengl_context.c logging.c
 OBJECTS = $(SOURCES:.c=.o)
 
 .PHONY: all clean install

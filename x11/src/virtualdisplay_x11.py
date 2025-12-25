@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Virtual Display Implementation for XFCE4
+Virtual Display Implementation for X11
 
-This is the XFCE4-specific implementation of virtual display creation.
+This is the X11-specific implementation of virtual display creation.
 It provides a compatible interface with the GNOME version but uses
 X11/xrandr methods instead of Mutter APIs.
 """
@@ -15,10 +15,10 @@ import time
 import subprocess
 from pathlib import Path
 
-logger = logging.getLogger('breezy_xfce4_virtualdisplay')
+logger = logging.getLogger('breezy_x11_virtualdisplay')
 
-class VirtualDisplayXFCE4:
-    """Virtual display implementation for XFCE4 using xrandr."""
+class VirtualDisplayX11:
+    """Virtual display implementation for Xorg-based desktops using xrandr."""
     
     def __init__(self, width, height, framerate, on_closed_cb, output_name: str | None = None):
         """
@@ -94,7 +94,7 @@ class VirtualDisplayXFCE4:
             # Try to find a suitable virtual output
             self.virtual_output = self._find_virtual_output()
             if not self.virtual_output:
-                logger.warning("No virtual output available. Virtual display creation on XFCE4/X11 is limited.")
+                logger.warning("No virtual output available. Virtual display creation on X11/X11 is limited.")
                 logger.warning("Ensure a dummy output (e.g. VIRTUAL1) is configured with the xf86-video-dummy driver.")
                 return
 
@@ -167,7 +167,7 @@ def _on_display_closed():
 
 if __name__ == "__main__":
     # Set up logging
-    log_dir = Path.home() / '.local' / 'state' / 'breezy_xfce4' / 'logs'
+    log_dir = Path.home() / '.local' / 'state' / 'breezy_x11' / 'logs'
     log_dir.mkdir(parents=True, exist_ok=True)
     
     logging.basicConfig(
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         ]
     )
     
-    parser = argparse.ArgumentParser(description="XFCE4 Virtual Display")
+    parser = argparse.ArgumentParser(description="X11 Virtual Display")
     parser.add_argument("--width", type=int, required=True, help="Display width")
     parser.add_argument("--height", type=int, required=True, help="Display height")
     parser.add_argument("--framerate", type=int, default=60, help="Display framerate")
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
     
     global virtual_display_instance
-    virtual_display_instance = VirtualDisplayXFCE4(
+    virtual_display_instance = VirtualDisplayX11(
         args.width, args.height, args.framerate, _on_display_closed
     )
     

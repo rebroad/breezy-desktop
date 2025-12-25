@@ -48,7 +48,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "breezy_xfce4_renderer.h"
+#include "breezy_x11_renderer.h"
 #include "logging.h"
 
 // Forward declarations
@@ -73,9 +73,9 @@ struct FrameBuffer {
     uint32_t frame_count;
 };
 
-// DeviceConfig, IMUData, IMUReader, CaptureThread, RenderThread are all defined in breezy_xfce4_renderer.h
+// DeviceConfig, IMUData, IMUReader, CaptureThread, RenderThread are all defined in breezy_x11_renderer.h
 
-// CaptureThread and RenderThread are fully defined in breezy_xfce4_renderer.h
+// CaptureThread and RenderThread are fully defined in breezy_x11_renderer.h
 // Helper macros to cast void* fields to real types for use in this file
 #define RT_X_DISPLAY(rt) ((Display*)(rt)->x_display)
 #define RT_GLX_CONTEXT(rt) ((GLXContext)(rt)->glx_context)
@@ -110,7 +110,7 @@ struct Renderer {
 };
 
 // Function prototypes
-// IMU reader functions are declared in breezy_xfce4_renderer.h (not static)
+// IMU reader functions are declared in breezy_x11_renderer.h (not static)
 
 static void *capture_thread_func(void *arg);
 static int init_capture_thread(CaptureThread *thread, Renderer *renderer);

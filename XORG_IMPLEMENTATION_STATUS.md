@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document tracks the implementation status of the Xorg modesetting driver (`xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`) to support virtual XR outputs for XFCE4.
+This document tracks the implementation status of the Xorg modesetting driver (`xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`) to support virtual XR outputs for X11.
 
 ## Current Implementation Status
 
@@ -49,12 +49,12 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 **Why it's needed:**
 - The 3D renderer uses DMA-BUF zero-copy for optimal performance
-- Current renderer expects to access framebuffers via DRM API (`xfce4/renderer/drm_capture.c`)
+- Current renderer expects to access framebuffers via DRM API (`x11/renderer/drm_capture.c`)
 - Eliminates CPU-side pixel copying, reducing latency and improving performance
 
-**Reference:** `xfce4/renderer/DMA_BUF_OPTIMIZATION.md`
+**Reference:** `x11/renderer/DMA_BUF_OPTIMIZATION.md`
 
-#### 3. **XFCE4 Backend Integration** (Required)
+#### 3. **X11 Backend Integration** (Required)
 
 **What's needed:**
 - Calibration detection and monitoring from XRLinuxDriver
@@ -64,10 +64,10 @@ Based on code review of `drmmode_xr_virtual.c`:
 - Integration with Breezy Desktop UI
 
 **Why it's needed:**
-- The XFCE4 backend (`xfce4/src/xfce4_backend.py`) needs to orchestrate the full workflow
+- The X11 backend (`x11/src/x11_backend.py`) needs to orchestrate the full workflow
 - Must coordinate between XRLinuxDriver, Xorg virtual outputs, and the 3D renderer
 
-**Reference:** `xfce4/src/xfce4_backend.py` - Backend implementation
+**Reference:** `x11/src/x11_backend.py` - Backend implementation
 
 #### 4. **Integration Testing** (Required)
 
@@ -80,7 +80,7 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 1. **Mode Handling** - Required for dynamic resolution changes
 2. **DRM Framebuffer Export** - Required for zero-copy capture (DMA-BUF)
-3. **XFCE4 Backend Integration** - Required for end-to-end workflow
+3. **X11 Backend Integration** - Required for end-to-end workflow
 4. **Integration Testing** - Validate all components work together
 
 ## Testing Requirements
@@ -91,7 +91,7 @@ After implementation, verify:
 3. ✅ XR-0 appears in `xrandr --listoutputs` after creation
 4. ✅ AR mode toggle hides/shows physical XR connector correctly (`xrandr --output XR-Manager --set AR_MODE 1`)
 5. ✅ Physical XR connector is marked as `non_desktop` when appropriate
-6. 🚧 XR-0 framebuffer is accessible via DRM API (test with `breezy_xfce4_renderer`)
+6. 🚧 XR-0 framebuffer is accessible via DRM API (test with `breezy_x11_renderer`)
 7. 🚧 Mode changes via XR_WIDTH, XR_HEIGHT, XR_REFRESH properties work correctly
 8. 🚧 DMA-BUF export provides zero-copy framebuffer access
 9. 🚧 End-to-end workflow: calibration → XR-0 creation → AR mode → renderer startup
@@ -102,6 +102,6 @@ After implementation, verify:
 - **Design Docs:**
   - `breezy-desktop/XORG_VIRTUAL_XR_API.md`
   - `breezy-desktop/BREEZY_X11_TECHNICAL.md` (section 7.2)
-  - `breezy-desktop/xfce4_ar_support_via_xorg_virtual_xr_connector.plan.md`
-- **Renderer Code:** `breezy-desktop/xfce4/renderer/` (expects virtual connector to be available)
-- **Backend Code:** `breezy-desktop/xfce4/src/xfce4_backend.py`
+  - `breezy-desktop/x11_ar_support_via_xorg_virtual_xr_connector.plan.md`
+- **Renderer Code:** `breezy-desktop/x11/renderer/` (expects virtual connector to be available)
+- **Backend Code:** `breezy-desktop/x11/src/x11_backend.py`

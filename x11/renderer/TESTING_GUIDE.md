@@ -1,6 +1,6 @@
 # Testing Guide for Standalone Renderer
 
-**Note**: This renderer works with any desktop environment/WM that uses Xorg (XFCE4, i3, Openbox, etc.).
+**Note**: This renderer works with any desktop environment/WM that uses Xorg (X11, i3, Openbox, etc.).
 
 ## Prerequisites
 
@@ -27,11 +27,11 @@ Before testing, ensure you have:
 ## Building
 
 ```bash
-cd /home/rebroad/src/breezy-desktop/xfce4/renderer
+cd /home/rebroad/src/breezy-desktop/x11/renderer
 make
 ```
 
-This should create `breezy_xfce4_renderer` executable.
+This should create `breezy_x11_renderer` executable.
 
 ## Architecture Overview
 
@@ -46,10 +46,10 @@ This should create `breezy_xfce4_renderer` executable.
 2. **breezy-desktop** (GUI/service):
    - Monitors XRLinuxDriver calibration state
    - **Creates XR-0 virtual connector** - Calls `xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:WIDTH:HEIGHT:REFRESH"`
-   - **Starts the renderer process** - Spawns `breezy_xfce4_renderer` binary
+   - **Starts the renderer process** - Spawns `breezy_x11_renderer` binary
    - Manages renderer lifecycle (restart on crash, cleanup on disconnect)
 
-3. **breezy_xfce4_renderer** (separate binary):
+3. **breezy_x11_renderer** (separate binary):
    - **Captures 2D frames** from XR-0 virtual connector via DRM/KMS
    - **Applies 3D transformations** using IMU data and GLSL shaders
    - **Renders to AR glasses** physical display via OpenGL
@@ -64,7 +64,7 @@ The renderer is **NOT** meant to be run manually. Instead:
    - XRLinuxDriver provides calibration state
 4. **breezy-desktop detects calibration completion** - Monitors XRLinuxDriver state
 5. **breezy-desktop creates XR-0** - Calls xrandr via XR-Manager (requires virtual connector implementation in Xorg)
-6. **breezy-desktop starts renderer** - Spawns `breezy_xfce4_renderer` process
+6. **breezy-desktop starts renderer** - Spawns `breezy_x11_renderer` process
 7. **Renderer captures from XR-0** and renders 3D transformed content to AR glasses
 
 **Important**: The renderer should NOT run without calibration first, as this would cause severe IMU drift.
@@ -100,7 +100,7 @@ For development/debugging, you can run the renderer manually, but you must ensur
 
 5. **Run renderer manually** (for testing only):
    ```bash
-   ./breezy_xfce4_renderer 1920 1080 60 90
+   ./breezy_x11_renderer 1920 1080 60 90
    ```
    
    Parameters:
@@ -110,7 +110,7 @@ For development/debugging, you can run the renderer manually, but you must ensur
 
 3. **Expected console output**:
    ```
-   Breezy XFCE4 Renderer
+   Breezy X11 Renderer
    Virtual display: 1920x1080@60Hz
    Render rate: 90Hz
    [IMU] Reader initialized, mapped XXX bytes
@@ -172,10 +172,10 @@ For development/debugging, you can run the renderer manually, but you must ensur
 
 Once virtual connector and breezy-desktop integration is complete:
 
-1. **Start XFCE4 session** (or use test script):
+1. **Start X11 session** (or use test script):
    ```bash
    cd /home/rebroad/src/xserver
-   ./test_xr_virtual.sh xfce4
+   ./test_xr_virtual.sh x11
    ```
 
 2. **Launch breezy-desktop** (GUI or service)
@@ -196,7 +196,7 @@ Once virtual connector and breezy-desktop integration is complete:
 
 7. **Verify renderer is running**:
    ```bash
-   ps aux | grep breezy_xfce4_renderer
+   ps aux | grep breezy_x11_renderer
    ```
 
 8. **Expected behavior**:
@@ -250,7 +250,7 @@ breezy-desktop needs to:
 3. **Start renderer process** - Spawn as separate binary:
    ```python
    renderer_process = subprocess.Popen(
-       ['breezy_xfce4_renderer', '1920', '1080', '60', '90'],
+       ['breezy_x11_renderer', '1920', '1080', '60', '90'],
        start_new_session=True
    )
    ```
@@ -260,7 +260,7 @@ breezy-desktop needs to:
 
 Integration code should go in:
 - `ui/src/virtualdisplaymanager.py` - Already spawns virtual display processes
-- Or new XFCE4-specific backend code
+- Or new X11-specific backend code
 
 **Current Status**: 
 - ✅ Renderer implemented as separate binary

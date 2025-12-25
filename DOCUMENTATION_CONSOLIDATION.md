@@ -10,10 +10,10 @@
 - **`XORG_IMPLEMENTATION_STATUS.md`**: Implementation status tracking and remaining tasks
 
 ### Implementation-Specific Docs (Keep Separate)
-- **`xfce4/renderer/IMPLEMENTATION_STATUS.md`**: Renderer implementation status
-- **`xfce4/renderer/TESTING_GUIDE.md`**: Testing procedures for XFCE4 renderer
-- **`xfce4/renderer/DMA_BUF_OPTIMIZATION.md`**: DMA-BUF optimization details
-- **`xfce4/renderer/PIPEWIRE_VS_DRM.md`**: Performance comparison
+- **`x11/renderer/IMPLEMENTATION_STATUS.md`**: Renderer implementation status
+- **`x11/renderer/TESTING_GUIDE.md`**: Testing procedures for X11 renderer
+- **`x11/renderer/DMA_BUF_OPTIMIZATION.md`**: DMA-BUF optimization details
+- **`x11/renderer/PIPEWIRE_VS_DRM.md`**: Performance comparison
 
 ## Duplication Analysis
 
@@ -29,7 +29,7 @@
    - **Resolution**: BREEZY_X11_TECHNICAL should have high-level status, XORG_IMPLEMENTATION_STATUS has detailed task tracking
    - **Status**: ✅ Updated - BREEZY_X11_TECHNICAL now references XORG_IMPLEMENTATION_STATUS
 
-3. **BREEZY_X11_TECHNICAL.md** vs **xfce4/renderer/IMPLEMENTATION_STATUS.md**:
+3. **BREEZY_X11_TECHNICAL.md** vs **x11/renderer/IMPLEMENTATION_STATUS.md**:
    - **Overlap**: Minimal - different scopes (Xorg driver vs renderer)
    - **Resolution**: Keep separate (renderer-specific vs driver-specific)
 
@@ -39,9 +39,9 @@
 BREEZY_X11_TECHNICAL.md (Main Document)
 ├── High-level overview of all components
 ├── References to detailed docs for:
-│   ├── XFCE4/Xorg virtual connector design → XORG_VIRTUAL_XR_API.md
+│   ├── X11/Xorg virtual connector design → XORG_VIRTUAL_XR_API.md
 │   ├── Implementation status → XORG_IMPLEMENTATION_STATUS.md
-│   └── Renderer details → xfce4/renderer/IMPLEMENTATION_STATUS.md
+│   └── Renderer details → x11/renderer/IMPLEMENTATION_STATUS.md
 └── Language choice rationale (Python vs C)
 
 XORG_VIRTUAL_XR_API.md (Detailed Design)
@@ -61,11 +61,11 @@ XORG_IMPLEMENTATION_STATUS.md (Status Tracking)
 ### Current Architecture
 
 **Performance-Critical Components (C/C++)**:
-- **3D Renderer** (`xfce4/renderer/breezy_xfce4_renderer.c`): C-based for maximum performance
+- **3D Renderer** (`x11/renderer/breezy_x11_renderer.c`): C-based for maximum performance
 - **KWin Effect** (`kwin/src/breezydesktopeffect.cpp`): C++ for compositor integration
 
 **Orchestration/IPC Components (Python/JavaScript)**:
-- **XFCE4 Backend** (`xfce4/src/xfce4_backend.py`): Python for xrandr orchestration
+- **X11 Backend** (`x11/src/x11_backend.py`): Python for xrandr orchestration
 - **KWin IPC** (`kwin/src/xrdriveripc/xrdriveripc.py`): Python for XRLinuxDriver IPC
 - **GNOME Extension** (`gnome/src/extension.js`): JavaScript (required by GNOME)
 

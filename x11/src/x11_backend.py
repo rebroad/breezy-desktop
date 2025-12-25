@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-XFCE4 Backend for Breezy Desktop
+X11 Backend for Breezy Desktop
 
-This module provides virtual display creation and management for XFCE4
-using the Xorg modesetting driver's virtual XR connector API.
+This module provides virtual display creation and management for Xorg-based
+desktop environments/WMs (XFCE4, i3, Openbox, etc.) using the Xorg modesetting
+driver's virtual XR connector API.
 """
 
 import logging
@@ -12,10 +13,10 @@ import subprocess
 import time
 from typing import List, Dict, Optional, Tuple
 
-logger = logging.getLogger('breezy_xfce4')
+logger = logging.getLogger('breezy_x11')
 
-class XFCE4Backend:
-    """Backend for creating and managing virtual displays on XFCE4 via XR-Manager."""
+class X11Backend:
+    """Backend for creating and managing virtual displays on Xorg-based desktops via XR-Manager."""
     
     def __init__(self):
         self.virtual_displays: Dict[str, Dict] = {}
@@ -40,7 +41,7 @@ class XFCE4Backend:
     
     def is_available(self) -> bool:
         """
-        Check if the XFCE4 backend is available.
+        Check if the X11 backend is available.
         
         Returns:
             True if xrandr is available and XR-Manager exists

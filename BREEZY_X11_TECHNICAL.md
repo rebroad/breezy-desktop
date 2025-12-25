@@ -209,7 +209,7 @@ this._virtual_displays_overlay.set_size(targetMonitor.width, targetMonitor.heigh
 global.stage.add_child(this._virtual_displays_overlay);
 ```
 
-**Important**: This overlay covers the normal desktop rendering at the XR monitor location. Mutter still renders the desktop normally to the XR monitor, but the overlay (with black background and 3D-transformed content) sits on top of it, covering the original content. The system cursor remains visible because it's rendered at the X server level (not by Mutter), so it appears above the overlay. This overlay approach is specific to Mutter/GNOME and is not available in XFCE4, which is why XFCE4 requires a different strategy (capturing the desktop framebuffer and rendering directly to the XR display).
+**Important**: This overlay covers the normal desktop rendering at the XR monitor location. Mutter still renders the desktop normally to the XR monitor, but the overlay (with black background and 3D-transformed content) sits on top of it, covering the original content. The system cursor remains visible because it's rendered at the X server level (not by Mutter), so it appears above the overlay. This overlay approach is specific to Mutter/GNOME and is not available in X11, which is why X11 requires a different strategy (capturing the desktop framebuffer and rendering directly to the XR display).
 
 #### 3. 3D Vertex Mesh Generation
 
@@ -733,17 +733,17 @@ Users would disable SBS mode for:
 
 ---
 
-## 7. XFCE4 Support via Virtual XR Outputs in Xorg
+## 7. X11 Support via Virtual XR Outputs in Xorg
 
-**Current Status**: Breezy Desktop works on X11 under GNOME. XFCE4 support requires virtual XR outputs in Xorg (implementation in progress).
+**Current Status**: Breezy Desktop works on X11 under GNOME. X11 support requires virtual XR outputs in Xorg (implementation in progress).
 
 ### 7.1 Standalone Renderer for Xorg-Based Desktops
 
-Since GNOME support is already working, our immediate focus is on supporting other desktop environments/WMs that use Xorg (XFCE4, i3, Openbox, etc.). Unlike GNOME which uses Mutter (a compositor with 3D rendering capabilities), these desktops do not have built-in 3D rendering capabilities, so Breezy Desktop needs to provide its own standalone 3D renderer.
+Since GNOME support is already working, our immediate focus is on supporting other desktop environments/WMs that use Xorg (X11, i3, Openbox, etc.). Unlike GNOME which uses Mutter (a compositor with 3D rendering capabilities), these desktops do not have built-in 3D rendering capabilities, so Breezy Desktop needs to provide its own standalone 3D renderer.
 
 #### Architecture Differences from GNOME
 
-Xorg-based desktops (XFCE4, i3, Openbox, etc.) differ from GNOME in several key ways:
+Xorg-based desktops (X11, i3, Openbox, etc.) differ from GNOME in several key ways:
 
 1. **No Built-in 3D Compositor**: These desktops use compositors that handle 2D window composition but do not have 3D rendering capabilities
 2. **Different Display Management**: They use RandR directly rather than Mutter's DisplayConfig D-Bus interface
@@ -808,9 +808,9 @@ For maximum FPS and best user experience, the standalone renderer is implemented
 - Dynamic resolution switching
 - Curved display support (mesh generation in C, similar to GNOME/KWin implementations)
 
-### 7.2 Virtual XR Outputs in Xorg (XFCE4 Implementation)
+### 7.2 Virtual XR Outputs in Xorg (X11 Implementation)
 
-**Note**: This section describes the virtual XR outputs implementation in the Xorg modesetting driver. This is **required for XFCE4 support** (not optional), as XFCE4 lacks compositor APIs like Mutter/KWin. For detailed API design and implementation status, see:
+**Note**: This section describes the virtual XR outputs implementation in the Xorg modesetting driver. This is **required for X11 support** (not optional), as X11 lacks compositor APIs like Mutter/KWin. For detailed API design and implementation status, see:
 - `XORG_VIRTUAL_XR_API.md` - Detailed API design, data structures, and communication interface
 - `XORG_IMPLEMENTATION_STATUS.md` - Current implementation status and remaining tasks
 
@@ -864,10 +864,10 @@ Virtual XR outputs provide:
 │  │  - Manages logical monitors                            │  │
 │  └────────────────────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────┐  │
-│  │  Compositor (GNOME: Mutter, XFCE4: Breezy 3D Renderer) │  │
+│  │  Compositor (GNOME: Mutter, X11: Breezy 3D Renderer) │  │
 │  │  - Composites virtual outputs                          │  │
 │  │  - Renders to physical XR display (GNOME)              │  │
-│  │  - Or Breezy 3D renderer reads and transforms (XFCE4)  │  │
+│  │  - Or Breezy 3D renderer reads and transforms (X11)  │  │
 │  └────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
                         │
@@ -905,7 +905,7 @@ For detailed API design and data structures, see `XORG_VIRTUAL_XR_API.md`.
 
 Virtual outputs are exposed through RandR:
 - They appear in `xrandr --listoutputs` as `XR-0`, `XR-1`, etc.
-- They are visible in Display Settings GUI (XFCE4, GNOME)
+- They are visible in Display Settings GUI (X11, GNOME)
 - They support dynamic resolution changes via RandR properties (`XR_WIDTH`, `XR_HEIGHT`, `XR_REFRESH`)
 
 **3. CRTC Assignment and Rendering Pipeline**
@@ -947,11 +947,11 @@ Virtual XR outputs provide:
 4. **Better Integration**: Virtual outputs appear in standard Display Settings tools, making them easier to configure
 5. **Wayland Parity**: Brings X11 functionality closer to the Wayland implementation's virtual display capabilities
 
-*Note: These benefits are realized in the current implementation. Unlike GNOME which uses Mutter's overlay approach, XFCE4 requires virtual outputs to avoid double rendering.*
+*Note: These benefits are realized in the current implementation. Unlike GNOME which uses Mutter's overlay approach, X11 requires virtual outputs to avoid double rendering.*
 
-### XFCE4 Implementation Path
+### X11 Implementation Path
 
-**Architecture**: Virtual XR outputs in Xorg are a **prerequisite** for efficient XFCE4 support. The workflow is:
+**Architecture**: Virtual XR outputs in Xorg are a **prerequisite** for efficient X11 support. The workflow is:
 
 1. **Virtual XR outputs are created** (XR-0, XR-1, etc.) via Xorg modesetting driver with virtual CRTCs
 2. **Physical XR display is hidden** from Display Settings (detected via EDID, marked as `non_desktop` or disabled)
@@ -969,7 +969,7 @@ Virtual XR outputs provide:
 
 **Note**: Attempting to work directly with the physical XR display would require double rendering (compositor renders to XR display, then Breezy captures and re-renders to the same display), which is inefficient, causes visual artifacts, and doesn't solve the cursor duplication issue.
 
-**Implementation Path for XFCE4**:
+**Implementation Path for X11**:
 
 1. **Complete virtual XR output infrastructure** in Xorg modesetting driver (virtual CRTCs, RandR integration)
 2. **Hide physical XR display** from Display Settings (detect via EDID, mark as `non_desktop`)
@@ -983,7 +983,7 @@ Virtual XR outputs provide:
    - Manages cursor (hides system cursor on virtual outputs, renders 3D cursor)
 5. **IMU integration**: Reads from `/dev/shm/breezy_desktop_imu` for head tracking data
 
-**Note on GNOME Architecture (for comparison)**: On GNOME, Mutter renders the desktop normally to the XR monitor, but then a black overlay (`St.Bin`) is positioned at the monitor's location on Mutter's stage. This overlay contains a `Clutter.Clone` of the desktop content (`Main.layoutManager.uiGroup`) with 3D transformations applied via a GLSL shader. The overlay covers most of the original content, so only the 3D-transformed version is visible. The system cursor remains visible because it's rendered at the X server level and cannot be fully hidden on X11. This overlay approach is not available in XFCE4, which is why virtual outputs are necessary.
+**Note on GNOME Architecture (for comparison)**: On GNOME, Mutter renders the desktop normally to the XR monitor, but then a black overlay (`St.Bin`) is positioned at the monitor's location on Mutter's stage. This overlay contains a `Clutter.Clone` of the desktop content (`Main.layoutManager.uiGroup`) with 3D transformations applied via a GLSL shader. The overlay covers most of the original content, so only the 3D-transformed version is visible. The system cursor remains visible because it's rendered at the X server level and cannot be fully hidden on X11. This overlay approach is not available in X11, which is why virtual outputs are necessary.
 
 
 ---
