@@ -44,16 +44,18 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 **Reference:** Standard RandR mode-setting APIs (`RRSetCrtcConfig`, CRTC's `set_mode_major` callback)
 
-#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Partially Complete)
+#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Complete)
 
 **What's implemented:**
 - ✅ `drmmode_xr_export_framebuffer_to_dmabuf()` function exists in Xorg driver
 - ✅ Exports framebuffer handle to DMA-BUF file descriptor using `drmPrimeHandleToFD()`
 - ✅ Works with both GBM and dumb buffers
+- ✅ **FRAMEBUFFER_ID RandR property** on virtual outputs exposes framebuffer ID to renderer
+- ✅ Property automatically updates when framebuffer changes (mode switch)
 
 **What's still needed:**
-- 🚧 Mechanism to expose framebuffer ID to renderer (RandR property or IPC)
-- 🚧 Renderer needs to be updated to get framebuffer ID (currently tries to find via DRM connector enumeration, which won't work for userspace-only virtual outputs)
+- 🚧 Renderer needs to be updated to query FRAMEBUFFER_ID property via XRandR extension
+- 🚧 Renderer should use property value to call `drmModeGetFB()` and `drmPrimeHandleToFD()` for zero-copy capture
 - 🚧 Integration testing to verify zero-copy capture works end-to-end
 
 **Why it's needed:**
@@ -61,9 +63,9 @@ Based on code review of `drmmode_xr_virtual.c`:
 - Current renderer expects to access framebuffers via DRM API (`x11/renderer/drm_capture.c`)
 - Eliminates CPU-side pixel copying, reducing latency and improving performance
 
-**Reference:** `x11/renderer/DMA_BUF_OPTIMIZATION.md`
+**Reference:** `x11/renderer/DMA_BUF_OPTIMIZATION.md`, `KMS_CONNECTOR_AND_FB_ID_OPTIONS.md`
 
-**Technical Note:** The export function exists in the Xorg driver, but since virtual outputs are userspace-only (no KMS connector), the renderer cannot find them via DRM enumeration. The framebuffer ID needs to be exposed via a RandR property on the virtual output, or via another IPC mechanism.
+**Technical Note:** The framebuffer ID is now exposed via RandR property `FRAMEBUFFER_ID` on each virtual output. The renderer should query this property via XRandR extension (or `xrandr --props`) to get the framebuffer ID, then use standard DRM APIs (`drmModeGetFB()` → `drmPrimeHandleToFD()`) to export for zero-copy capture.
 
 #### 3. **X11 Backend Integration** (Required)
 
