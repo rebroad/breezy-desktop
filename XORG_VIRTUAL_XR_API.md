@@ -4,7 +4,7 @@
 
 - In this document, **XR** means **Extended Reality** (AR/VR-style glasses such as XREAL, VITURE, etc.).
 - Provide Breezy Desktop with a **RandR-visible virtual XR connector** (`XR-0`) on X11, so:
-  - XFCE’s display tool can position/resize it like a normal monitor.
+  - Display settings tools can position/resize it like a normal monitor.
   - Breezy can treat it as the “virtual desktop plane” for AR.
 - Add an **AR mode** in the Xorg modesetting driver that:
   - Hides the physical XR connector from the 2D XRandR map.
@@ -18,13 +18,13 @@ flowchart LR
   xorg[Xorg+Modesetting]
   xr0[XR-0 virtual connector]
   physXR[PhysicalXR connector]
-  xfceRandr[RandR clients\n(display tool, apps)]
+  randrClients[RandR clients\n(display tool, apps)]
   breezy[Breezy X11 backend\n+ 3D renderer]
 
   kernelDRM --> xorg
   xorg --> physXR
   xorg --> xr0
-  xorg <---> xfceRandr
+  xorg <---> randrClients
   xorg <---> breezy
 ```
 
@@ -132,7 +132,7 @@ XR-0 will supply its mode list via the existing `drmmode_output_funcs.mode_get`-
 - **Normal 2D mode:**
   - Physical XR connector (e.g. `DisplayPort-0` or similar) is visible in RandR.
   - XR-0 may be disabled, or present but unused.
-  - Glasses behave like a normal monitor in XFCE’s display tool.
+  - Glasses behave like a normal monitor in display settings tools.
 
 - **AR mode:**
   - Physical XR connector is **hidden** from the 2D XRandR map:
@@ -170,7 +170,7 @@ For XR-0 we need a consistent captureable surface:
 
 Exact capture strategy can evolve independently of the modesetting driver, as long as XR-0’s contents are represented in a consistent pixmap/FB.
 
-## Breezy & XFCE Integration (summary)
+## Breezy & X11 Integration (summary)
 
 - Display settings tools:
   - See XR-0 as a normal RandR output.

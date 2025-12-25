@@ -10,7 +10,7 @@ todos:
     status: in_progress
     dependencies:
       - design-modesetting-xr-connector
-  - id: wire-breezy-xfce-backend
+  - id: wire-breezy-x11-backend
     content: Update Breezy X11 backend to discover the virtual XR connector via XRandR and treat it as the virtual desktop plane for AR.
     status: pending
     dependencies:
@@ -74,7 +74,7 @@ Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modes
 - Extend the modesetting driver’s RandR code to support **two representations**:
 - Physical XR connector visible as a monitor in normal 2D mode.
 - Virtual XR connector visible, physical hidden, in AR mode.
-- Ensure XFCE’s display tool sees only the appropriate outputs based on mode:
+- Ensure display settings tools see only the appropriate outputs based on mode:
 - In AR mode, users arrange the virtual XR connector like any other monitor.
 - Provide a control path (X property, RandR property, or simple CLI) to toggle AR mode that Breezy or the user can call.
 
@@ -83,9 +83,9 @@ Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modes
 - Update `breezy-desktop`’s X11 backend to:
 - Discover the virtual XR connector via XRandR (`XR-0`).
 - Read its geometry and placement, treating it as the **virtual desktop plane** for AR.
-- Define how Breezy maps XFCE’s **2D layout** into 3D:
+- Define how Breezy maps the **2D layout** into 3D:
 - The virtual connector rectangle becomes the content plane for AR rendering.
-- Breezy’s UI continues to manage AR‑specific properties (distance, curvature, follow mode) independently of XFCE.
+- Breezy's UI continues to manage AR‑specific properties (distance, curvature, follow mode) independently of the desktop environment.
 
 ### 6. Implement / complete the X11 3D renderer
 
@@ -99,7 +99,7 @@ Implement full Breezy Desktop support for X11 on X11 by extending the Xorg modes
 
 ### 7. Integrate with Breezy UI and lifecycle
 
-- Ensure `extensionsmanager.py` and `virtualdisplaymanager.py` load the X11 backend when running under XFCE.
+- Ensure `extensionsmanager.py` and `virtualdisplaymanager.py` load the X11 backend when running under X11-based desktops.
 - Implement lifecycle hooks so that:
 - Starting an AR session on X11 enables the virtual XR connector (and AR mode if needed).
 - Stopping AR restores the normal 2D mapping (physical XR monitor visible again, virtual XR connector disabled).

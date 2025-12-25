@@ -778,7 +778,7 @@ For maximum FPS and best user experience, the standalone renderer is implemented
 2. Initial calibration period (15 seconds for XREAL devices)
 3. Physical VR display marked as `non_desktop` via EDID (hidden from Display Settings)
 4. Virtual XR connector (XR-0) appears in same screen location
-5. Desktop compositor (XFCE, i3, etc.) renders to virtual XR connector (off-screen buffer)
+5. Desktop compositor renders to virtual XR connector (off-screen buffer)
 6. Breezy standalone renderer captures from virtual buffer via DRM/KMS
 7. Renderer applies 3D transformations (IMU head tracking) via GLSL shaders (Sombrero.frag)
 8. Renderer outputs directly to physical AR glasses display
