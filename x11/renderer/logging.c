@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -49,7 +50,7 @@ int log_init(void) {
     }
     
     // Open log file
-    char log_file_path[512];
+    char log_file_path[PATH_MAX + 32];  // Enough for path + "/renderer.log"
     snprintf(log_file_path, sizeof(log_file_path), "%s/renderer.log", log_dir_path);
     
     log_file = fopen(log_file_path, "a");

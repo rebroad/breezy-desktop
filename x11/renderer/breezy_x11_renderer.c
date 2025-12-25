@@ -12,7 +12,7 @@
  * - Direct OpenGL rendering (no Qt/abstractions)
  */
 
-#define _POSIX_C_SOURCE 200809L  // for usleep
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -161,6 +161,8 @@ static void cleanup_frame_buffer(FrameBuffer *fb) {
 }
 
 static bool write_frame(FrameBuffer *fb, const uint8_t *data, uint32_t width, uint32_t height) {
+    (void)data;  // Not used - DMA-BUF path doesn't copy pixel data here
+    
     if (width != fb->width || height != fb->height) {
         return false;
     }
@@ -220,7 +222,8 @@ static void *capture_thread_func(void *arg) {
         int dmabuf_fd = -1;
         uint32_t format, stride, modifier;
         
-        if (export_drm_framebuffer_to_dmabuf(thread, &dmabuf_fd, &format, &stride, &modifier) == 0) {
+        int export_result = export_drm_framebuffer_to_dmabuf(thread, &dmabuf_fd, &format, &stride, &modifier);
+        if (export_result == 0) {
             RenderThread *render_thread = &thread->renderer->render_thread;
             
             // Lock mutex to protect shared DMA-BUF data
@@ -244,9 +247,24 @@ static void *capture_thread_func(void *arg) {
             // Signal new frame available (marker frame - no pixel copy)
             uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
             write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
+        } else if (export_result == -2) {
+            // Framebuffer changed (resolution/mode switch) - re-initialize DRM capture
+            log_info("[Capture] Framebuffer changed, re-initializing DRM capture\n");
+            
+            // Cleanup old framebuffer info
+            cleanup_drm_capture(thread);
+            
+            // Re-initialize with new framebuffer ID
+            if (init_drm_capture(thread) < 0) {
+                log_error("[Capture] Failed to reinitialize DRM capture after framebuffer change\n");
+                // Continue trying - maybe next frame will work
+            } else {
+                log_info("[Capture] Successfully reinitialized DRM capture with new framebuffer ID %u\n", thread->fb_id);
+            }
         } else {
-            // Export failed, wait a bit
-            usleep(10000);  // 10ms
+            // Export failed for other reason, wait a bit
+            struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
+            nanosleep(&sleep_time, NULL);
         }
         
         // Sleep until next frame
@@ -324,7 +342,8 @@ static void *render_thread_func(void *arg) {
                               &frame_data,
                               &frame_timestamp)) {
             // No frame available, skip this render
-            usleep(1000);  // 1ms
+            struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 1000000 };  // 1ms
+            nanosleep(&sleep_time, NULL);
             continue;
         }
         
@@ -722,7 +741,6 @@ static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu, De
     pthread_mutex_lock(&thread->dmabuf_mutex);
     
     int dmabuf_fd = thread->current_dmabuf_fd;
-    uint32_t fb_id = thread->current_fb_id;
     uint32_t format = thread->current_format;
     uint32_t stride = thread->current_stride;
     uint32_t modifier = thread->current_modifier;

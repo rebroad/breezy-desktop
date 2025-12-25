@@ -28,19 +28,6 @@
 #endif
 
 // GLX helper functions
-static int find_ar_glasses_display(Display *dpy, int screen, Window *out_window) {
-    // Try to find the AR glasses display by checking RandR outputs
-    // For now, we'll use the primary screen - this can be enhanced to detect AR glasses specifically
-    
-    Window root = RootWindow(dpy, screen);
-    *out_window = root;
-    
-    // TODO: Use XRandR to find the AR glasses output specifically
-    // For now, assume primary display
-    
-    return 0;
-}
-
 static int create_glx_context_on_display(RenderThread *thread, const char *display_name) {
     // Open X display
     thread->x_display = XOpenDisplay(display_name);

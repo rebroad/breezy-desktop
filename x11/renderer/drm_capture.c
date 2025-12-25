@@ -47,7 +47,6 @@ static int drm_prime_handle_to_fd(int fd, uint32_t handle, uint32_t flags, int *
 }
 
 #define DRM_DEVICE_PATH "/dev/dri"
-#define DRM_DEVICE_PREFIX "card"
 #define FRAMEBUFFER_ID_PROPERTY "FRAMEBUFFER_ID"
 
 // DRM format definitions should be in drm_fourcc.h
@@ -137,25 +136,25 @@ static uint32_t query_framebuffer_id_from_randr(const char *output_name) {
 }
 
 /**
- * Find DRM device that has the given framebuffer ID
+ * Try to find framebuffer in devices matching a prefix (e.g., "renderD" or "card")
  * Returns 0 on success, -1 on failure
  */
-static int find_drm_device_for_framebuffer(uint32_t fb_id, char *device_path, size_t path_size) {
+static int try_device_prefix(uint32_t fb_id, const char *prefix, char *device_path, size_t path_size) {
     DIR *dir = opendir(DRM_DEVICE_PATH);
     if (!dir) {
-        log_error("[DRM] Failed to open %s: %s\n", DRM_DEVICE_PATH, strerror(errno));
         return -1;
     }
     
     struct dirent *entry;
     int found = 0;
+    size_t prefix_len = strlen(prefix);
     
     while ((entry = readdir(dir)) != NULL) {
-        if (strncmp(entry->d_name, DRM_DEVICE_PREFIX, strlen(DRM_DEVICE_PREFIX)) != 0) {
+        if (strncmp(entry->d_name, prefix, prefix_len) != 0) {
             continue;
         }
         
-        char device_path_tmp[256];
+        char device_path_tmp[512];  // Large enough for /dev/dri/ + filename
         snprintf(device_path_tmp, sizeof(device_path_tmp), "%s/%s", DRM_DEVICE_PATH, entry->d_name);
         
         int drm_fd = open(device_path_tmp, O_RDWR | O_CLOEXEC);
@@ -180,12 +179,30 @@ static int find_drm_device_for_framebuffer(uint32_t fb_id, char *device_path, si
     
     closedir(dir);
     
-    if (!found) {
-        log_error("[DRM] Failed to find DRM device with framebuffer ID %u\n", fb_id);
-        return -1;
+    return found ? 0 : -1;
+}
+
+/**
+ * Find DRM device that has the given framebuffer ID
+ * Tries render nodes first (more secure), then falls back to card nodes
+ * Returns 0 on success, -1 on failure
+ */
+static int find_drm_device_for_framebuffer(uint32_t fb_id, char *device_path, size_t path_size) {
+    // Try render nodes first (renderD128, renderD129, etc.) - more secure
+    if (try_device_prefix(fb_id, "renderD", device_path, path_size) == 0) {
+        log_info("[DRM] Using render node: %s\n", device_path);
+        return 0;
     }
     
-    return 0;
+    // Fall back to card nodes (card0, card1, etc.) - works with video group
+    if (try_device_prefix(fb_id, "card", device_path, path_size) == 0) {
+        log_info("[DRM] Using card node: %s (render node not available)\n", device_path);
+        return 0;
+    }
+    
+    log_error("[DRM] Failed to find DRM device (renderD or card) with framebuffer ID %u\n", fb_id);
+    log_error("[DRM] Make sure you are in 'video' or 'render' group\n");
+    return -1;
 }
 
 // Initialize DRM capture
@@ -240,14 +257,21 @@ int init_drm_capture(CaptureThread *thread) {
 }
 
 // Export DRM framebuffer as DMA-BUF file descriptor (zero-copy)
+// Returns 0 on success, -1 on error, -2 if framebuffer changed (FB ID invalidated)
 int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint32_t *format, uint32_t *stride, uint32_t *modifier) {
     if (thread->drm_fd < 0 || !thread->fb_info) {
         return -1;
     }
     
-    // Check if framebuffer changed (this shouldn't happen often, but handle it)
-    // Re-query from RandR property if needed (for now, assume it doesn't change)
-    // TODO: Could add property change notification handling if needed
+    // Verify framebuffer still exists (drmModeGetFB will fail if FB was destroyed/resized)
+    drmModeFBPtr fb_check = drmModeGetFB(thread->drm_fd, thread->fb_id);
+    if (!fb_check) {
+        // Framebuffer was destroyed - likely due to resolution change
+        // Return special error code so caller can re-initialize
+        log_warn("[DRM] Framebuffer ID %u no longer valid, likely due to mode change\n", thread->fb_id);
+        return -2;  // FRAMEBUFFER_CHANGED
+    }
+    drmModeFreeFB(fb_check);
     
     // Export framebuffer handle to DMA-BUF file descriptor
     int fd = -1;

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O3 -march=native -pthread
+CFLAGS = -Wall -Wextra -Werror -O3 -march=native -pthread
 CFLAGS += -std=c11
 CFLAGS += $(shell pkg-config --cflags gl)
 CFLAGS += $(shell pkg-config --cflags glx)
