@@ -91,7 +91,6 @@ This will:
 ## Architecture
 
 - `src/x11_backend.py` - Main backend implementation (uses XR-Manager API)
-- `src/virtualdisplay_x11.py` - Legacy virtual display script (uses dummy driver, deprecated)
 - `bin/setup` - Setup/installation script
 
 ## Implementation Details
