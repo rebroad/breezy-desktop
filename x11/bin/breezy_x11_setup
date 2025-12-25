@@ -2,19 +2,6 @@
 
 set -e
 
-echo "Setting up Breezy Desktop for X11/Xorg (development mode)..."
-
-# Check if running on X11
-if [ -z "$XDG_SESSION_TYPE" ] || [[ ! "$XDG_SESSION_TYPE" =~ [Xx]11 ]]; then
-    echo "Warning: This setup script is for X11/Xorg. Current session: $XDG_SESSION_TYPE"
-    read -p "Continue anyway? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-# Check for required commands
 check_command() {
     for cmd in "$@"; do
         if command -v "$cmd" &>/dev/null; then
@@ -29,28 +16,82 @@ check_command() {
 check_command "xrandr"
 check_command "python" "python3"
 
-# Get script directory and repo root (treat repo as the install location)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BREEZY_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [ "$XDG_SESSION_TYPE" != "x11" ]; then
+    printf "\033[1;33mWARNING:\033[0m Windowing system is %s\n" "$XDG_SESSION_TYPE"
+    printf "\033[1;33mWARNING:\033[0m This setup script is for X11/Xorg sessions\n"
+fi
 
-# Make the breezy-desktop tree importable in dev mode via a .pth file
-echo "Registering breezy-desktop source tree with Python (user site-packages)..."
-PYTHON_SITE_PACKAGES=$(python3 -c "import site; print(site.getusersitepackages())" 2>/dev/null || python3 -c "import site; print(site.USER_SITE)")
-mkdir -p "$PYTHON_SITE_PACKAGES"
-echo "$BREEZY_DIR" > "$PYTHON_SITE_PACKAGES/breezy_desktop_dev.pth"
+# Check for XR-Manager output (required for virtual XR outputs)
+xr_manager_found=0
+if command -v xrandr >/dev/null 2>&1; then
+    if xrandr --listoutputs 2>/dev/null | grep -q "XR-Manager"; then
+        xr_manager_found=1
+    fi
+fi
+
+if [ "$xr_manager_found" -eq 0 ]; then
+    printf "\033[1;31mERROR:\033[0m XR-Manager output not found\n"
+    printf "Virtual XR connector support is required for Breezy Desktop on X11.\n"
+    printf "This requires an Xorg server with the modesetting driver that includes virtual XR output support.\n"
+    printf "\nPlease ensure:\n"
+    printf "  1. You are running an Xorg server (not Xwayland)\n"
+    printf "  2. The Xorg modesetting driver with virtual XR connector support is installed\n"
+    printf "  3. The XR-Manager output is available (check with: xrandr --listoutputs)\n"
+    printf "\nIf you continue to have issues, rerun the setup with BREEZY_IGNORE_XR_MANAGER=1 to skip this check.\n\n"
+    if [ -z "$BREEZY_IGNORE_XR_MANAGER" ]; then
+        exit 1
+    else
+        printf "\033[1;33mWARNING:\033[0m Ignoring XR-Manager check. "
+        printf "Virtual display functionality will not be available.\n\n"
+    fi
+fi
+
+USER_HOME=$(realpath ~)
+
+if [ -z "$XDG_DATA_HOME" ]; then
+  XDG_DATA_HOME="$USER_HOME/.local/share"
+fi
+XR_DRIVER_DATA_DIR="$XDG_DATA_HOME/xr_driver"
+
+if [ -z "$XDG_BIN_HOME" ]; then
+  XDG_BIN_HOME="$USER_HOME/.local/bin"
+fi
+
+if [ -d "$XDG_BIN_HOME" ]; then
+  # check ownership and permissions before doing chown and chmod
+  XDG_BIN_USER=$(stat -c %U $XDG_BIN_HOME)
+  XDG_BIN_GROUP=$(stat -c %G $XDG_BIN_HOME)
+
+  USER=$(whoami)
+  GROUP=$(id -gn)
+
+  if [ "$XDG_BIN_USER" != "$USER" ] || [ "$XDG_BIN_GROUP" != "$GROUP" ]; then
+    echo "Fixing ownership and permissions of $XDG_BIN_HOME"
+    sudo chown -R $USER:$GROUP $XDG_BIN_HOME
+    sudo chmod -R 700 $XDG_BIN_HOME
+  fi
+fi
+
+UA_EVENT_NAME="breezy_x11_install"
+UA_CLIENT_ID="BreezyX11"
+UA_EVENT_VERSION="$1"
+#INJECT_UA_CALL
+
+# set up the XR driver using the local binary
+echo "Installing xrDriver (requires sudo)"
+echo "BEGIN - xr_driver_setup"
+if [ -z "$1" ]
+then
+  sudo bin/xr_driver_setup $(pwd)/xrDriver.tar.gz
+else
+  sudo bin/xr_driver_setup -v $1 $(pwd)/xrDriver.tar.gz
+fi
+
+echo "END - xr_driver_setup"
 
 echo ""
-echo "Breezy Desktop X11 setup complete!"
+echo "Breezy Desktop X11 backend setup complete!"
 echo ""
-echo "This script sets up the development environment for Breezy Desktop on X11."
-echo "For production use, install Breezy Desktop as a package instead."
+echo "Note: This installs only the X11 backend and XR driver."
+echo "To use the Breezy Desktop UI application, you will need GTK4 and libadwaita installed."
 echo ""
-echo "Prerequisites for X11 backend:"
-echo "  - Xorg with modesetting driver (standard on most Linux distributions)"
-echo "  - Xorg modesetting driver with virtual XR output support (XR-Manager)"
-echo ""
-echo "The X11 backend uses virtual XR outputs (XR-0, XR-1, etc.) created via"
-echo "the Xorg modesetting driver, not the dummy driver."
-echo ""
-echo "You can now launch Breezy Desktop from the applications menu."
-

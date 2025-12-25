@@ -51,8 +51,6 @@ See [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) for detailed tech
 
 ## X11 Backend Setup
 
-**For development mode only:**
-
 From your `breezy-desktop` source tree:
 
 ```bash
