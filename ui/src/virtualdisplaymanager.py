@@ -63,7 +63,7 @@ class VirtualDisplayManager(GObject.GObject):
             desktop_env = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
             if 'xfce' in desktop_env:
                 # Use XFCE4 virtual display script
-                virtualdisplay_script = f"{get_bin_home()}/virtualdisplay_xfce4"
+                virtualdisplay_script = f"{get_bin_home()}/virtualdisplay_x11"
             else:
                 # Use GNOME virtual display script
                 virtualdisplay_script = f"{get_bin_home()}/virtualdisplay"
