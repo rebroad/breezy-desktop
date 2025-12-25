@@ -54,17 +54,29 @@ See [`../BREEZY_X11_TECHNICAL.md`](../BREEZY_X11_TECHNICAL.md) for detailed tech
 From your `breezy-desktop` source tree:
 
 ```bash
-cd breezy-desktop
-chmod +x x11/bin/breezy_x11_setup
-./x11/bin/breezy_x11_setup
+cd breezy-desktop/x11
+chmod +x bin/breezy_x11_setup
+./bin/breezy_x11_setup
+```
+
+Or with a version number:
+
+```bash
+./bin/breezy_x11_setup v1.0.0
 ```
 
 This will:
 
-- Register the `breezy-desktop` source tree with your user `site-packages` via a `.pth` file, so the X11 backend can be imported in development mode.
-- Verify basic dependencies (`xrandr`, `python3`) are available.
+- Check for prerequisites (xrandr, python3, XR-Manager output)
+- Install the XR driver
 
-**Note:** For production use, install Breezy Desktop as a package. The setup script is only needed for development.
+**Prerequisites:**
+- X11/Xorg session (not Xwayland)
+- Xorg with modesetting driver that includes virtual XR output support (XR-Manager)
+- Python 3
+- `xrandr` command-line tool
+
+**Note:** This setup script installs only the X11 backend and XR driver. The Breezy Desktop UI application requires GTK4 and libadwaita if you want to use it.
 
 ## Usage (Once Implementation is Complete)
 
@@ -80,7 +92,7 @@ This will:
 
 - `src/x11_backend.py` - Main backend implementation (uses XR-Manager API)
 - `src/virtualdisplay_x11.py` - Legacy virtual display script (uses dummy driver, deprecated)
-- `bin/breezy_x11_setup` - Development setup script
+- `bin/breezy_x11_setup` - Setup/installation script
 
 ## Implementation Details
 
