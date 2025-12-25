@@ -79,6 +79,7 @@ typedef struct RenderThread {
     uint32_t current_format;  // DRM format of current framebuffer
     uint32_t current_stride;  // Stride of current framebuffer
     uint64_t current_modifier;  // Modifier of current framebuffer (uint64_t per DRM spec)
+    bool fb_changed;  // True when framebuffer changed (need to recreate EGL image)
     
     // VBO/VAO for fullscreen quad
     uint32_t vbo;  // GLuint (0 if not initialized)

@@ -243,40 +243,52 @@ static void *capture_thread_func(void *arg) {
         }
         
         // Reuse cached DMA-BUF FD (exported once during init, reused for all frames)
+        // Only pass FD to render thread when framebuffer changes (optimization: reuse EGL image)
         if (thread->cached_dmabuf_fd >= 0) {
             RenderThread *render_thread = &thread->renderer->render_thread;
             
             // Lock mutex to protect shared DMA-BUF data
             pthread_mutex_lock(&render_thread->dmabuf_mutex);
             
-            // Close old fd if framebuffer ID changed (shouldn't happen often, but handle it)
-            if (render_thread->current_dmabuf_fd >= 0 && 
-                thread->fb_id != render_thread->current_fb_id) {
-                close(render_thread->current_dmabuf_fd);
-            }
+            // Check if framebuffer changed (need to update EGL image)
+            bool fb_changed = (thread->fb_id != render_thread->current_fb_id);
             
-            // Pass cached DMA-BUF info to render thread
-            // Note: We're reusing the same FD, but we need to duplicate it for the render thread
-            // because the render thread will take ownership and close it when done
-            int dmabuf_fd_dup = dup(thread->cached_dmabuf_fd);
-            if (dmabuf_fd_dup >= 0) {
-                render_thread->current_dmabuf_fd = dmabuf_fd_dup;
-                render_thread->current_fb_id = thread->fb_id;
-                render_thread->current_format = thread->cached_format;
-                render_thread->current_stride = thread->cached_stride;
-                render_thread->current_modifier = thread->cached_modifier;
+            if (fb_changed) {
+                // Framebuffer changed - close old FD if exists and create new EGL image
+                if (render_thread->current_dmabuf_fd >= 0) {
+                    close(render_thread->current_dmabuf_fd);
+                }
                 
+                // Duplicate cached FD for render thread (EGL will take ownership)
+                int dmabuf_fd_dup = dup(thread->cached_dmabuf_fd);
+                if (dmabuf_fd_dup >= 0) {
+                    render_thread->current_dmabuf_fd = dmabuf_fd_dup;
+                    render_thread->current_fb_id = thread->fb_id;
+                    render_thread->current_format = thread->cached_format;
+                    render_thread->current_stride = thread->cached_stride;
+                    render_thread->current_modifier = thread->cached_modifier;
+                    render_thread->fb_changed = true;  // Signal render thread to create new EGL image
+                    
+                    pthread_mutex_unlock(&render_thread->dmabuf_mutex);
+                    
+                    // Signal new frame available (marker frame - no pixel copy)
+                    uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
+                    write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
+                } else {
+                    pthread_mutex_unlock(&render_thread->dmabuf_mutex);
+                    log_error("[Capture] Failed to duplicate DMA-BUF FD: %s\n", strerror(errno));
+                    // Wait a bit before retrying
+                    struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
+                    nanosleep(&sleep_time, NULL);
+                }
+            } else {
+                // Framebuffer unchanged - reuse existing EGL image (no FD needed)
+                render_thread->fb_changed = false;
                 pthread_mutex_unlock(&render_thread->dmabuf_mutex);
                 
-                // Signal new frame available (marker frame - no pixel copy)
+                // Signal new frame available (render thread will reuse existing EGL image)
                 uint8_t *dummy = NULL;  // No pixel data - render thread uses DMA-BUF
                 write_frame(&thread->renderer->frame_buffer, dummy, thread->width, thread->height);
-            } else {
-                pthread_mutex_unlock(&render_thread->dmabuf_mutex);
-                log_error("[Capture] Failed to duplicate DMA-BUF FD: %s\n", strerror(errno));
-                // Wait a bit before retrying
-                struct timespec sleep_time = { .tv_sec = 0, .tv_nsec = 10000000 };  // 10ms
-                nanosleep(&sleep_time, NULL);
             }
         } else {
             // Cached FD not available - should not happen after successful init
@@ -470,6 +482,7 @@ static int init_render_thread(RenderThread *thread, Renderer *renderer) {
     thread->current_format = 0;
     thread->current_stride = 0;
     thread->current_modifier = 0;
+    thread->fb_changed = false;
     thread->vbo = 0;
     thread->vao = 0;
     
@@ -758,24 +771,27 @@ static void render_frame(RenderThread *thread, FrameBuffer *fb, IMUData *imu, De
     int width = fb->width;
     int height = fb->height;
     
-    // Check if we have a new DMA-BUF to import (framebuffer changed)
+    // Check if framebuffer changed (need to create new EGL image)
     // Lock mutex to read shared DMA-BUF data
     pthread_mutex_lock(&thread->dmabuf_mutex);
     
-    int dmabuf_fd = thread->current_dmabuf_fd;
+    bool fb_changed = thread->fb_changed;
+    int dmabuf_fd = -1;
+    if (fb_changed && thread->current_dmabuf_fd >= 0) {
+        // Framebuffer changed - take ownership of FD for EGL image creation
+        dmabuf_fd = thread->current_dmabuf_fd;
+        thread->current_dmabuf_fd = -1;  // Take ownership
+        thread->fb_changed = false;  // Mark as consumed
+    }
     uint32_t format = thread->current_format;
     uint32_t stride = thread->current_stride;
     uint32_t modifier = thread->current_modifier;
     
-    // Mark as consumed immediately (capture thread will provide new one if needed)
-    if (dmabuf_fd >= 0) {
-        thread->current_dmabuf_fd = -1;
-    }
-    
     pthread_mutex_unlock(&thread->dmabuf_mutex);
     
-    if (dmabuf_fd >= 0) {
-        // Import DMA-BUF as texture (zero-copy)
+    // Only create new EGL image when framebuffer changed (optimization: reuse EGL image)
+    if (fb_changed && dmabuf_fd >= 0) {
+        // Framebuffer changed - create new EGL image
         GLuint texture = import_dmabuf_as_texture(thread, dmabuf_fd,
                                                    width, height, format, stride, modifier);
         if (texture == 0) {
