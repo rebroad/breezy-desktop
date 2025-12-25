@@ -28,7 +28,7 @@ logger = logging.getLogger('breezy_x11_virtualdisplay')
 
 class VirtualDisplayX11:
     """Virtual display implementation for Xorg-based desktops using XR-Manager."""
-    
+
     def __init__(self, width, height, framerate, on_closed_cb, output_name: str = "XR-0"):
         """
         Args:
@@ -45,40 +45,40 @@ class VirtualDisplayX11:
         self.output_name = output_name
         self.backend = X11Backend()
         self.running = True
-        
+
     def create(self):
         """Create the virtual display using XR-Manager."""
         if not self.backend.is_available():
             logger.error("XR-Manager not available. Cannot create virtual display.")
             logger.error("Please ensure you are running Xorg (not Xwayland) with the modesetting driver that includes virtual XR connector support.")
             return False
-        
+
         try:
             display_id = self.backend.create_virtual_display(
-                self.width, 
-                self.height, 
+                self.width,
+                self.height,
                 self.framerate,
                 name=self.output_name
             )
-            
+
             if display_id:
                 logger.info(f"Virtual display created: {display_id} ({self.width}x{self.height}@{self.framerate}Hz)")
                 return True
             else:
                 logger.error("Failed to create virtual display")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error creating virtual display: {e}")
             return False
-    
+
     def terminate(self):
         """Clean up and terminate the virtual display."""
         if not self.running:
             return
-        
+
         self.running = False
-        
+
         try:
             if self.backend.is_available():
                 # Remove the virtual display
@@ -88,7 +88,7 @@ class VirtualDisplayX11:
                     logger.warning(f"Failed to remove virtual display {self.output_name}")
         except Exception as e:
             logger.warning(f"Error removing virtual display: {e}")
-        
+
         if self.on_closed_cb:
             self.on_closed_cb()
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     # Set up logging
     log_dir = Path.home() / '.local' / 'state' / 'breezy_x11' / 'logs'
     log_dir.mkdir(parents=True, exist_ok=True)
-    
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -125,26 +125,26 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ]
     )
-    
+
     parser = argparse.ArgumentParser(description="X11 Virtual Display (XR-Manager)")
     parser.add_argument("--width", type=int, required=True, help="Display width in pixels")
     parser.add_argument("--height", type=int, required=True, help="Display height in pixels")
     parser.add_argument("--framerate", type=int, default=60, help="Display framerate in Hz")
     parser.add_argument("--output", type=str, default="XR-0", help="Virtual output name (default: XR-0)")
     args = parser.parse_args()
-    
+
     signal.signal(signal.SIGTERM, graceful_shutdown)
     signal.signal(signal.SIGINT, graceful_shutdown)
-    
+
     global virtual_display_instance
     virtual_display_instance = VirtualDisplayX11(
-        args.width, 
-        args.height, 
-        args.framerate, 
+        args.width,
+        args.height,
+        args.framerate,
         _on_display_closed,
         output_name=args.output
     )
-    
+
     try:
         if virtual_display_instance.create():
             # Keep running until terminated
