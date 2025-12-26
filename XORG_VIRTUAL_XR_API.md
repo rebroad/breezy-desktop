@@ -118,37 +118,40 @@ Virtual displays will supply their mode list via the existing `drmmode_output_fu
 - Does **not** depend on EDID.
 - Mode list is determined by the size specified during creation.
 
-### AR Mode Semantics
-
 ### AR Mode Semantics (XR Use Case)
 
 - **Normal 2D mode:**
-  - Physical XR connector (e.g. `DisplayPort-0` or similar) is visible in RandR.
-  - Virtual XR displays (e.g., `XR-0`) may be disabled, or present but unused.
-  - Glasses behave like a normal monitor in display settings tools.
+  - Physical XR connector (e.g. `DisplayPort-0` or similar) is visible in RandR as a normal desktop display.
+  - Virtual XR displays (e.g., `XR-0`) may not exist, or exist but be disabled.
 
 - **AR mode:**
-  - Physical XR connector is **hidden** from the 2D XRandR map:
-    - RandR output flagged as non-desktop, disabled, or not enumerated to clients.
-  - Virtual XR displays (e.g., `XR-0`) are **enabled** and visible as standard outputs.
-  - Breezy's renderer uses the virtual display's framebuffer as the AR "screen" and drives the real XR connector via GPU APIs.
+  - Physical XR connector is **marked as non-desktop** in RandR:
+    - RandR output property `non-desktop` set to `true` (standard RandR property).
+    - This hides it from display settings tools (it remains accessible to Breezy's renderer).
+  - Virtual XR display (e.g., `XR-0`) is **created and enabled** as a standard desktop output.
+  - Breezy's renderer captures the virtual display's framebuffer and drives the physical XR connector via GPU APIs.
 
-Control mechanism:
+Control mechanism (per-device, managed by Breezy Desktop):
 
-- Implement a **RandR output property** on `VIRTUAL-MANAGER`, e.g. `AR_MODE` (boolean):
+- **Breezy Desktop manages AR mode per physical XR device** (not via a global property):
+  1. **During calibration**: Physical XR device is visible as a normal desktop display.
+  2. **After calibration completes**: Breezy Desktop:
+     - Creates virtual XR display (e.g., `XR-0`) via `VIRTUAL-MANAGER` → automatically desktop.
+     - Sets physical XR output's `non-desktop` property to `true` via RandR API.
+     - Enables and positions the virtual XR display.
+  3. **When disabling AR mode**: Breezy Desktop:
+     - Sets physical XR output's `non-desktop` property to `false`.
+     - Optionally disables or removes the virtual XR display.
 
-```c
-Atom ar_mode_atom; /* stored in modesettingRec */
-```
+- **RandR property on physical XR output**:
+  - Use standard RandR `non-desktop` property (type: boolean).
+  - Set via `RRChangeOutputProperty()` or `xrandr --output <PHYSICAL-XR> --set non-desktop true`.
+  - This is per-output, not global - allows multiple XR devices with independent AR mode state.
 
-- When `AR_MODE` is set on `VIRTUAL-MANAGER`:
-  - Toggle `ms->ar_mode`.
-  - Ensure:
-    - Physical XR output is DPMS-off or otherwise hidden.
-    - Virtual XR displays are enabled and visible.
-    - Non-XR virtual displays (e.g., remote streaming displays) are unaffected.
-
-**Note**: AR mode is specific to XR use cases. Remote streaming displays and other virtual displays continue to function normally regardless of AR mode state.
+**Note**:
+- AR mode is per-device, not global. Each physical XR device can independently be in AR mode.
+- Remote streaming displays and other virtual displays are unaffected by AR mode changes.
+- The `non-desktop` property is a standard RandR property, not a custom XR-specific property.
 
 ### Off-Screen Buffer / Capture Path
 
@@ -160,15 +163,19 @@ For virtual displays we need a consistent captureable surface:
   - Ensure the compositor/desktop painting code can blit or render the relevant desktop region into each pixmap each frame (this part can be refined later).
 
 - **Capture strategies** (depending on use case):
-  - **XR displays**: Breezy's renderer can:
-    - Use XShm/XGetImage on the virtual display's region.
-    - Or, for better performance, use DRI/GLX/DRI3 to bind the pixmap as a texture and sample it directly.
+  - **XR displays**: Breezy's renderer uses **zero-copy DMA-BUF capture**:
+    - Queries `FRAMEBUFFER_ID` property from the virtual display via RandR.
+    - Uses `drmModeGetFB()` to get framebuffer information from the DRM device.
+    - Exports framebuffer handle as DMA-BUF file descriptor via `drmPrimeHandleToFD()`.
+    - Imports DMA-BUF directly into OpenGL/EGL texture via `eglCreateImageKHR()` with `EGL_LINUX_DMA_BUF_EXT`.
+    - **Zero-copy**: No CPU memory copy, framebuffer is accessed directly by GPU.
+    - This is the same technique used by Mutter and modern compositors for zero-copy compositing.
   - **Remote streaming displays**: Content can be captured and streamed via:
     - PipeWire (for screen sharing to remote clients)
-    - Direct framebuffer access (for custom streaming protocols)
+    - Direct framebuffer access via DMA-BUF (similar to XR capture)
     - Other capture mechanisms as needed
 
-Exact capture strategy can evolve independently of the modesetting driver, as long as each virtual display's contents are represented in a consistent pixmap/FB.
+The DMA-BUF zero-copy capture method provides optimal performance with minimal CPU overhead, avoiding the need for XShm/XGetImage CPU-side copies.
 
 ## Breezy & X11 Integration (summary)
 
@@ -178,6 +185,11 @@ Exact capture strategy can evolve independently of the modesetting driver, as lo
   - Display names appear as specified during creation (e.g., `XR-0`, `REMOTE-0`).
 
 - Breezy X11 backend (XR use case):
+  - **During calibration**: Physical XR device is visible as a normal desktop display.
+  - **After calibration completes**:
+    1. Creates virtual XR display (e.g., `XR-0`) via `VIRTUAL-MANAGER` (automatically desktop).
+    2. Sets physical XR output's `non-desktop` property to `true` to hide it from display settings.
+    3. Enables and positions the virtual XR display.
   - Uses XRandR to discover virtual XR displays (e.g., `XR-0`) and read their geometry and placement.
   - Treats the virtual display's rectangle as the 2D "virtual desktop plane" for AR.
 
@@ -214,22 +226,23 @@ Breezy communicates **directly with Xorg** via the XRandR extension (no intermed
    - Use `RRSetOutputPrimary()` or `RRSetCrtcConfig()` to enable/disable virtual displays
    - Create modes via `RRAddOutputMode()` if needed
 
-3. **Set AR mode (XR use case)**:
-   - Set a custom RandR output property `"AR_MODE"` (type: boolean) on the `VIRTUAL-MANAGER` output
-   - Example: `RRChangeOutputProperty(virtual_manager_output, "AR_MODE", XA_INTEGER, 32, PropModeReplace, 1, &enabled)`
-   - **Note**: AR_MODE must be set on `VIRTUAL-MANAGER`, not on individual virtual displays
+3. **Set AR mode (XR use case) - per physical device**:
+   - Set standard RandR `non-desktop` property (type: boolean) on the **physical XR output** (not on VIRTUAL-MANAGER)
+   - Example: `RRChangeOutputProperty(physical_xr_output, "non-desktop", XA_INTEGER, 32, PropModeReplace, 1, &non_desktop)`
+   - When `non-desktop=true`: Physical XR connector is hidden from display settings tools (remains accessible to renderers)
+   - When `non-desktop=false`: Physical XR connector appears as a normal desktop display
+   - **Note**: AR mode is managed per physical XR device, not globally
 
 4. **Query connector state**:
    - Use `RRGetOutputInfo()` to get geometry, position, enabled status for virtual displays
-   - Read `AR_MODE` property via `RRGetOutputProperty()` on `VIRTUAL-MANAGER`
-   - Read `FRAMEBUFFER_ID` property on virtual displays for zero-copy capture (XR use case)
+   - Read `non-desktop` property via `RRGetOutputProperty()` on physical XR outputs
+   - Read `FRAMEBUFFER_ID` property on virtual displays for zero-copy DMA-BUF capture (XR use case)
 
 **Xorg modesetting driver → Clients** (via RandR properties):
 
-- The driver reads the `AR_MODE` RandR property on **VIRTUAL-MANAGER** (not on individual virtual displays)
-- When `AR_MODE=1` (enabled): hide physical XR connector, show virtual XR displays
-- When `AR_MODE=0` (disabled): show physical XR connector, hide virtual XR displays
-- Virtual displays expose `FRAMEBUFFER_ID` property for zero-copy capture (XR use case)
+- Virtual displays expose `FRAMEBUFFER_ID` property for zero-copy DMA-BUF capture (XR use case)
+- Physical outputs support standard RandR `non-desktop` property (per-output, not global)
+- The driver respects the `non-desktop` property set by clients (Breezy Desktop) - no special driver logic needed
 
 ### Comparison with Mutter/KWin
 
@@ -265,18 +278,29 @@ Breezy's X11 backend (`x11/src/x11_backend.py`) will use Python XRandR bindings 
        return name  # Returns the output name (e.g., "XR-0")
    ```
 
-3. **Enable AR mode** (XR use case):
+3. **Enable AR mode** (XR use case - per physical device):
    ```python
-   def enable_ar_mode(self):
-       # Set AR_MODE property via xrandr or direct XRandR API on VIRTUAL-MANAGER
-       # This tells the driver to hide physical XR, show virtual XR displays
-       subprocess.run(['xrandr', '--output', 'VIRTUAL-MANAGER',
-                      '--set', 'AR_MODE', '1'])
+   def enable_ar_mode(self, physical_xr_output_name: str):
+       # Set non-desktop property on physical XR output to hide it from display settings
+       # This is done AFTER creating the virtual XR display
+       subprocess.run(['xrandr', '--output', physical_xr_output_name,
+                      '--set', 'non-desktop', 'true'])
+       # Virtual XR display is automatically desktop (created as normal output)
    ```
    
-   **Note**: AR_MODE must be set on **VIRTUAL-MANAGER** (not on individual virtual displays),
-   as it's a global setting that controls visibility of all physical/virtual XR connectors.
-   Non-XR virtual displays (e.g., remote streaming displays) are unaffected by AR mode.
+   **Note**: AR mode is managed **per physical XR device** (not global).
+   - Set `non-desktop=true` on the **physical XR output** (e.g., `DisplayPort-0`)
+   - Virtual XR displays are automatically desktop outputs when created
+   - Non-XR virtual displays (e.g., remote streaming displays) are unaffected
+
+4. **Disable AR mode**:
+   ```python
+   def disable_ar_mode(self, physical_xr_output_name: str):
+       # Restore physical XR output as desktop display
+       subprocess.run(['xrandr', '--output', physical_xr_output_name,
+                      '--set', 'non-desktop', 'false'])
+       # Optionally disable/remove virtual XR display
+   ```
 
 4. **Create remote streaming display** (example):
    ```python
