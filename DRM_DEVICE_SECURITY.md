@@ -1,5 +1,7 @@
 # DRM Device Security and Permissions
 
+**Important:** This document discusses how the renderer accesses DRM devices. For information about what our Xorg modifications actually create (framebuffers, not devices), see `DRM_DEVICE_CREATION_CLARIFICATION.md`.
+
 ## Device Path and Ownership
 
 **DRM devices are located at:**
@@ -149,9 +151,14 @@ static int find_drm_device_for_framebuffer(uint32_t fb_id, char *device_path, si
 
 ## Current Implementation
 
+**Important Clarification:**
+- **Xorg does NOT create DRM devices** - they are created by the **kernel's DRM drivers** (amdgpu, intel, nouveau, etc.)
+- **Both `card*` and `renderD*` devices already exist** in `/dev/dri/` (they're kernel-created, not Xorg-created)
+- **The "hybrid approach"** refers only to **the renderer's device selection logic** - how it searches for which device to use
+
 **Our renderer currently:**
 1. Queries framebuffer ID via XRandR property on XR-0 output
-2. Iterates through `/dev/dri/card*` devices to find which one has the framebuffer
+2. Iterates through `/dev/dri/` devices to find which one has the framebuffer (tries renderD* first, then card*)
 3. Opens the matching DRM device
 4. Uses `drmModeGetFB()` and `drmPrimeHandleToFD()` for zero-copy capture
 
