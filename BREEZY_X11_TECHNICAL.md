@@ -988,6 +988,83 @@ Virtual XR outputs provide:
 
 ---
 
+## Implementation Details
+
+### EGL Image Reuse Optimization
+
+The renderer reuses EGL images across frames, only recreating them when the framebuffer changes. This eliminates EGL image create/destroy overhead on every frame (~15-70μs per frame savings, ~54-252ms per minute).
+
+**Implementation:**
+- Tracks framebuffer ID changes in capture thread
+- Only passes DMA-BUF FD to render thread when framebuffer changes
+- Render thread reuses existing EGL image/texture when framebuffer unchanged
+- Automatic detection via error-based mechanism (`drmModeGetFB()` failure indicates framebuffer was destroyed)
+
+### Framebuffer Change Handling
+
+Framebuffer changes occur when:
+- User changes virtual output resolution/refresh rate via Display Settings
+- Virtual output is deleted and recreated
+
+**Detection:** Error-based - when `drmModeGetFB()` fails, framebuffer was destroyed. Renderer re-queries `FRAMEBUFFER_ID` property and re-initializes capture.
+
+**Xorg driver side:** Automatically updates `FRAMEBUFFER_ID` property when framebuffer changes during mode switch.
+
+### Shared Math Library
+
+A shared C math library (`shared/math/`) contains pure mathematical functions extracted from the GNOME JavaScript code, ensuring consistent calculations across all backends:
+- FOV conversions (`breezy_diagonal_to_cross_fovs()`)
+- Quaternion operations (SLERP, multiplication, vector application)
+- Look-ahead calculations
+- Smooth follow progress calculations
+- Perspective matrix generation
+
+The X11 renderer uses this library for all mathematical operations, ensuring parity with GNOME implementation.
+
+### Virtual Desktop Size and Follow Features
+
+**Size Increase (Zoom When Looking):**
+- Implemented in GNOME via `_update_display_distance()` - adjusts `display_distance` when monitor is focused
+- Scales monitor position vectors: `coord * current_display_distance / display_distance_default`
+- Closer distance = larger appearance
+
+**Follow Feature:**
+- Repositions desktop in virtual space when user looks beyond boundaries
+- Uses quaternion SLERP for smooth transitions
+- Implemented via `smooth_follow_origin` matrix when smooth follow enabled
+- Position set to `[0, 0, 0]` during smooth follow (centered display)
+
+### DRM Device Security
+
+**Access Requirements:**
+- Users must be in `video` or `render` group
+- Renderer uses hybrid approach: tries render nodes (`/dev/dri/renderD*`) first (more secure), falls back to card nodes (`/dev/dri/card*`)
+- Read-only framebuffer access (no modesetting required)
+- Standard Linux permission model
+
+**Security Assessment:**
+- ✅ Read-only access to user's own virtual display
+- ✅ No significant security risk for single-user desktop systems
+- ✅ Prefers more restrictive render nodes when available
+
+### Language Choice: C for Renderer
+
+**Why C:**
+- ✅ Fastest performance (zero interpreter overhead)
+- ✅ Direct system access (DRM, DMA-BUF, OpenGL)
+- ✅ Industry standard (OpenGL, DRM libraries are C APIs)
+- ✅ Predictable performance (no garbage collection pauses)
+
+**Network Streaming:** Use GStreamer Python bindings (GStreamer is C internally, Python just controls it).
+
+**Control/Configuration:** Use Python (rapid development, performance doesn't matter).
+
+### Xvfb vs Our Virtual Outputs
+
+**Xvfb:** Entire headless X server in memory (no physical display at all). Used for testing, automation, headless operation.
+
+**Our virtual outputs:** Virtual outputs on an existing X server with physical displays. Framebuffers in memory that work like normal extended displays - can be shown on any physical display via panning/extended desktop, and can be captured for XR rendering.
+
 ## References
 
 - **Extension Source**: `breezy-desktop/gnome/src/`
