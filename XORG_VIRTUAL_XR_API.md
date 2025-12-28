@@ -120,16 +120,23 @@ Virtual displays will supply their mode list via the existing `drmmode_output_fu
 
 ### AR Mode Semantics (XR Use Case)
 
-- **Normal 2D mode:**
-  - Physical XR connector (e.g. `DisplayPort-0` or similar) is visible in RandR as a normal desktop display.
-  - Virtual XR displays (e.g., `XR-0`) may not exist, or exist but be disabled.
+**Important**: "AR mode" is **not a driver-level concept** - it's just Breezy Desktop's term for when the physical XR output is marked as `non-desktop`. Virtual outputs work like normal extended displays regardless.
 
-- **AR mode:**
+- **Normal 2D mode:**
+  - Physical XR connector (e.g. `DisplayPort-0` or similar) is visible in RandR as a normal desktop display (`non-desktop=false`).
+  - Virtual XR displays (e.g., `XR-0`) work like any extended display:
+    - Can be shown on regular physical displays (HDMI, DisplayPort, etc.) via panning/extended desktop
+    - Can be positioned, extended, or mirrored like any other monitor
+    - Moving mouse into virtual output (if panning enabled) causes it to be displayed on physical displays
+
+- **"AR mode" (Breezy Desktop concept):**
   - Physical XR connector is **marked as non-desktop** in RandR:
     - RandR output property `non-desktop` set to `true` (standard RandR property).
     - This hides it from display settings tools (it remains accessible to Breezy's renderer).
-  - Virtual XR display (e.g., `XR-0`) is **created and enabled** as a standard desktop output.
-  - Breezy's renderer captures the virtual display's framebuffer and drives the physical XR connector via GPU APIs.
+  - Virtual XR display (e.g., `XR-0`) **continues to work as a normal extended display**:
+    - Can still be shown on regular physical displays via panning/extended desktop
+    - Can be captured via DMA-BUF by Breezy's renderer (independent operation)
+    - Breezy's renderer processes the framebuffer and drives the physical XR connector via GPU APIs
 
 Control mechanism (per-device, managed by Breezy Desktop):
 

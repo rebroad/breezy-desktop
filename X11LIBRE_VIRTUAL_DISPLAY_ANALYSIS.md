@@ -24,11 +24,15 @@ X11Libre appears to be a standard fork of the X.Org Server with code cleanups an
    - `virtualX`/`virtualY`: These are standard X server concepts for **virtual desktop size** (panning across a larger virtual desktop than the physical display), not virtual display outputs
    - Standard RandR, modesetting driver, and other core X server components
 
-3. **Xvfb Reference**: Found reference to `Xvfb` (X virtual framebuffer), but this is:
-   - A **headless X server** (different use case)
-   - Runs entirely in memory with no physical display
-   - Not related to creating virtual outputs on an existing X server
-   - Standard X.Org Server component, not X11Libre-specific
+3. **Xvfb Reference**: Found reference to `Xvfb` (X virtual framebuffer), but this serves a different purpose:
+   - **Xvfb**: An entire **headless X server** that runs in memory with no physical display at all (used for testing, automation, etc.)
+   - **Our virtual XR outputs**: Virtual outputs created on an **existing X server** (which has physical displays), where:
+     - Framebuffers are stored in memory (GBM or dumb buffers)
+     - Can be displayed on physical XR devices via our renderer
+     - Can be shown/hidden dynamically (AR mode)
+     - Can be captured and streamed
+     - Part of the desktop compositor's rendering pipeline
+   - The key difference: Xvfb is a headless server with no display, while our virtual outputs are additional outputs on a server with physical displays, with framebuffers that exist in memory but can be rendered to physical devices
 
 4. **Modesetting Driver**: The modesetting driver exists in X11Libre at:
    - `hw/xfree86/drivers/video/modesetting/`
@@ -72,7 +76,7 @@ Based on web search and codebase analysis, X11Libre focuses on:
 - Standard X server functionality
 - Standard modesetting driver
 - Standard RandR extension
-- Xvfb (headless server, different use case)
+- Xvfb (headless server - entirely different architecture: a complete X server in memory with no physical display, vs our virtual outputs which are additional outputs on a server with physical displays)
 
 ---
 
