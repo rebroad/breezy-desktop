@@ -22,14 +22,17 @@ What is the best codec to use for casting the desktop remotely with low-latency?
 
 ### Codec Characteristics for Low-Latency
 
-**Ultra-Low Latency (<50ms):**
+**Ultra-Low Latency (<50ms) - Best for Local Network:**
 - **MJPEG**: No temporal compression, each frame independent
-- **Raw/Uncompressed**: No encoding overhead
-- Trade-off: High bandwidth requirements
+  - **Latency**: ~17-20ms (lowest of all codecs)
+  - **Bandwidth**: High (but acceptable on local network)
+  - **Best choice for local network streaming**
+- **Raw/Uncompressed**: No encoding overhead (minimal latency)
+- Trade-off: High bandwidth requirements (fine for local network)
 
 **Low Latency (50-100ms):**
 - **VP8/VP9**: Designed for low-latency streaming (WebRTC)
-- **H.264 (low latency profile)**: With tuned settings, can achieve <100ms
+- **H.264 (low latency profile)**: With tuned settings, can achieve <100ms (~19ms on local network)
 - Trade-off: Some compression, but manageable latency
 
 **Medium Latency (100-200ms):**
@@ -303,10 +306,17 @@ Virtual Display (XR-Manager) → Capture (DMA-BUF) → Encode (VP8/H.264) → We
 
 ### Codec Selection
 
-**For low latency (<100ms):**
+**For local network (lowest latency):**
+- **MJPEG**: **Lowest latency (~17-20ms)**, each frame independent, no temporal compression
+  - High bandwidth but acceptable on local network (Wi-Fi/Ethernet)
+  - Simple encoding/decoding (fast CPU implementation)
+  - **Best choice for local network streaming**
+- **H.264 (low latency profile)**: ~19ms latency, better compression, universal hardware support
+- **VP8**: ~50-100ms latency, good compression, WebRTC optimized
+
+**For WAN/Internet (bandwidth-limited):**
 - **VP8**: Best balance (low latency, good compression, wide support)
 - **H.264 (low latency profile)**: Universal support, acceptable latency
-- **MJPEG**: Ultra-low latency but high bandwidth (local network only)
 
 **For quality over latency:**
 - **VP9**: Better compression than VP8
@@ -405,9 +415,77 @@ gst-launch-1.0 \
 
 ---
 
+## Client Options for Remote Display
+
+### Raspberry Pi Client
+
+**Options:**
+1. **Custom Client Application**:
+   - Linux-based, can run standard video player/streaming client
+   - Can use GStreamer for decoding/display
+   - Output to HDMI/DisplayPort connected display
+   - Full control over implementation
+
+2. **Existing Solutions**:
+   - **VLC**: Supports MJPEG/H.264 streaming via RTP/UDP
+   - **GStreamer pipeline**: Can decode and display video stream
+   - **MPV**: Lightweight video player, supports network streaming
+
+**Implementation Example (GStreamer on Raspberry Pi):**
+```bash
+# MJPEG stream receiver
+gst-launch-1.0 \
+  udpsrc port=5000 ! \
+  image/jpeg,width=1920,height=1080,framerate=60/1 ! \
+  jpegdec ! \
+  videoconvert ! \
+  waylandsink  # or xvimagesink for X11
+```
+
+### Android Client with DisplayPort Output
+
+**Options:**
+1. **Custom Android App**:
+   - Native Android app using MediaCodec (hardware-accelerated decoding)
+   - MJPEG/H.264/VP8 decoder
+   - Display to external display via DisplayPort/HDMI (USB-C to DisplayPort)
+   - Can use Android's Presentation API for second screen
+
+2. **Existing Android Apps** (Screen Mirroring Receivers):
+   - **VLC for Android**: Supports network streaming (RTP, HTTP)
+   - **MX Player**: Network streaming support
+   - **Kodi**: Media center, supports network streams
+   - **Scrcpy (reverse)**: Typically for Android→PC, but architecture could be adapted
+
+**Android Implementation Approach:**
+- Use **MediaCodec API** for hardware-accelerated decoding (MJPEG/H.264)
+- Use **Presentation API** or **MediaRouter** for DisplayPort output
+- Network receiving via **HttpURLConnection** or native socket (UDP)
+- Real-time playback using **SurfaceView** or **TextureView**
+
+**Note**: Most existing Android apps are designed for media playback (with buffering), not ultra-low latency streaming. A custom app would be better for <50ms latency requirements.
+
+### Recommendation
+
+**For local network streaming:**
+- **MJPEG** for lowest latency (~17-20ms)
+- **Raspberry Pi**: Custom client using GStreamer (easiest) or VLC
+- **Android**: Custom app using MediaCodec (MJPEG/H.264) + Presentation API for DisplayPort output
+- Existing apps may work but won't achieve ultra-low latency (they buffer for smoothness)
+
+---
+
 ## Summary and Recommendations
 
-### Best Solution: WebRTC with VP8 over UDP
+### Best Solution for Local Network: MJPEG over UDP
+
+**For local network (your use case):**
+- **Codec**: **MJPEG** (lowest latency: ~17-20ms)
+- **Protocol**: RTP over UDP (or simple UDP)
+- **Bandwidth**: High but acceptable on local Wi-Fi/Ethernet
+- **Implementation**: Simple (no complex encoding/decoding)
+
+### Alternative: WebRTC with VP8/H.264 over UDP (for WAN/Internet)
 
 **Codec**: VP8 or H.264 (low latency profile)
 **Protocol**: RTP/SRTP over UDP (via WebRTC)
