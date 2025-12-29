@@ -50,17 +50,109 @@ class X11Backend:
             self._check_xr_manager_availability()
         return self.xr_manager_available
     
+    def get_physical_xr_connector_refresh_rates(self, connector_name: Optional[str] = None) -> List[int]:
+        """
+        Query physical XR connector for supported refresh rates.
+
+        Args:
+            connector_name: Name of physical XR connector (e.g., "DisplayPort-0").
+                           If None, attempts to auto-detect the XR connector.
+
+        Returns:
+            List of supported refresh rates in Hz (e.g., [60, 72, 90])
+        """
+        try:
+            # If connector name not provided, try to find XR connector
+            if not connector_name:
+                # Query all outputs to find XR connector
+                result = subprocess.run(['xrandr', '--listoutputs'],
+                                      capture_output=True, text=True, check=True)
+                for line in result.stdout.splitlines():
+                    # Look for connected outputs that might be XR devices
+                    # Common XR connectors: DisplayPort-*, HDMI-*
+                    if 'connected' in line.lower():
+                        parts = line.split()
+                        if parts:
+                            potential_connector = parts[0]
+                            # Check if it's likely an XR connector (not XR-Manager or XR-* virtual)
+                            if not potential_connector.startswith('XR-') and potential_connector != 'XR-Manager':
+                                # Query this connector for modes
+                                try:
+                                    modes_result = subprocess.run(
+                                        ['xrandr', '--output', potential_connector, '--query'],
+                                        capture_output=True, text=True, check=True
+                                    )
+                                    # Check if it has non-desktop property (XR devices are often marked as such)
+                                    props_result = subprocess.run(
+                                        ['xrandr', '--output', potential_connector, '--props'],
+                                        capture_output=True, text=True, check=False
+                                    )
+                                    if 'non-desktop' in props_result.stdout.lower() or \
+                                       'xreal' in modes_result.stdout.lower() or \
+                                       'viture' in modes_result.stdout.lower() or \
+                                       'nreal' in modes_result.stdout.lower():
+                                        connector_name = potential_connector
+                                        logger.info(f"Auto-detected XR connector: {connector_name}")
+                                        break
+                                except subprocess.CalledProcessError:
+                                    continue
+
+            if not connector_name:
+                logger.warning("No XR connector found, using default refresh rate")
+                return [60]  # Default fallback
+
+            # Query connector modes via xrandr
+            result = subprocess.run(
+                ['xrandr', '--output', connector_name, '--query'],
+                capture_output=True, text=True, check=True
+            )
+
+            # Parse output to extract refresh rates
+            # Format: "   1920x1080     60.00*+  75.00    50.00"
+            import re
+            refresh_rates = []
+            for line in result.stdout.splitlines():
+                # Look for mode lines with refresh rates
+                if 'x' in line and ('Hz' in line or re.search(r'\d+\.\d+', line)):
+                    # Extract refresh rates (numbers followed by Hz, *, +, or space)
+                    rates = re.findall(r'(\d+\.?\d*)\s*[*+]?', line)
+                    for rate_str in rates:
+                        try:
+                            rate = int(float(rate_str))
+                            # Filter reasonable refresh rates (1-1000 Hz)
+                            if 1 <= rate <= 1000 and rate not in refresh_rates:
+                                refresh_rates.append(rate)
+                        except ValueError:
+                            pass
+
+            # Sort and return
+            refresh_rates = sorted(refresh_rates) if refresh_rates else [60]
+            logger.info(f"Found refresh rates for {connector_name}: {refresh_rates}")
+            return refresh_rates
+
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to query refresh rates for {connector_name}: {e}")
+            return [60]  # Default fallback
+        except Exception as e:
+            logger.warning(f"Error querying refresh rates: {e}")
+            return [60]  # Default fallback
+
     def create_virtual_display(self, width: int, height: int, framerate: int = 60, 
-                               name: str = "XR-0") -> Optional[str]:
+                               name: str = "XR-0", refresh_rates: Optional[List[int]] = None,
+                               physical_connector: Optional[str] = None) -> Optional[str]:
         """
         Create a virtual XR display using XR-Manager.
         
         Args:
             width: Display width in pixels
             height: Display height in pixels
-            framerate: Display framerate (default: 60)
+            framerate: Display framerate (default: 60) - used for initial creation
             name: Virtual output name (default: "XR-0")
-            
+            refresh_rates: List of supported refresh rates (e.g., [60, 72, 90]).
+                          If None, attempts to query from physical XR connector.
+            physical_connector: Name of physical XR connector to query for refresh rates.
+                              If None, attempts to auto-detect.
+
         Returns:
             Display ID (output name) if successful, None otherwise
         """
@@ -85,15 +177,37 @@ class X11Backend:
                 logger.error(f"Virtual output {name} was not created")
                 return None
             
+            # Query refresh rates if not provided
+            if refresh_rates is None:
+                refresh_rates = self.get_physical_xr_connector_refresh_rates(physical_connector)
+
+            # Set multiple refresh rates if we have more than one
+            if len(refresh_rates) > 1:
+                # Build modes string: "WIDTH:HEIGHT:REFRESH|WIDTH:HEIGHT:REFRESH|..."
+                modes_str = "|".join([f"{width}:{height}:{rate}" for rate in refresh_rates])
+
+                # Set XR_MODES property on the virtual output
+                try:
+                    subprocess.run(
+                        ['xrandr', '--output', name,
+                         '--set', 'XR_MODES', modes_str],
+                        capture_output=True, text=True, check=True
+                    )
+                    logger.info(f"Set {len(refresh_rates)} refresh rates for {name}: {refresh_rates}")
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"Failed to set XR_MODES property (may not be supported): {e}")
+                    # Continue anyway - backward compatible
+
             # Store display info
             self.virtual_displays[name] = {
                 'id': name,
                 'width': width,
                 'height': height,
-                'framerate': framerate
+                'framerate': framerate,
+                'refresh_rates': refresh_rates or [framerate]
             }
             
-            logger.info(f"Created virtual XR display {name}: {width}x{height}@{framerate}Hz")
+            logger.info(f"Created virtual XR display {name}: {width}x{height}@{framerate}Hz (refresh rates: {refresh_rates})")
             return name
             
         except subprocess.CalledProcessError as e:
