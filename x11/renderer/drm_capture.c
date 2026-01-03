@@ -59,6 +59,95 @@ static int drm_prime_handle_to_fd(int fd, uint32_t handle, uint32_t flags, int *
  * Query FRAMEBUFFER_ID property from XR-0 output via XRandR
  * Returns framebuffer ID on success, 0 on failure
  */
+/* Keep-alive function: Query FRAMEBUFFER_ID property to signal active consumption */
+/* This resets the inactivity timer in the X server, keeping the virtual output active */
+/* Uses a cached Display connection to avoid blocking on connection setup/teardown */
+static Display *keepalive_display = NULL;
+
+void drm_capture_keep_alive(const char *output_name) {
+    if (!output_name)
+        return;
+
+    // Use cached Display connection to avoid blocking on connection setup
+    if (!keepalive_display) {
+        keepalive_display = XOpenDisplay(NULL);
+        if (!keepalive_display) {
+            // Failed to open display - skip keep-alive this time
+            return;
+        }
+    }
+
+    // Check if connection is still valid (non-blocking check)
+    if (XConnectionNumber(keepalive_display) < 0) {
+        // Connection lost - close and reopen
+        XCloseDisplay(keepalive_display);
+        keepalive_display = XOpenDisplay(NULL);
+        if (!keepalive_display)
+            return;
+    }
+
+    // Flush any pending events (non-blocking)
+    while (XPending(keepalive_display) > 0) {
+        XEvent ev;
+        XNextEvent(keepalive_display, &ev);
+    }
+
+    // Query FRAMEBUFFER_ID property as a lightweight keep-alive signal
+    // This is a synchronous call, but it's very fast (microseconds) since we're using
+    // a cached connection and the property is already in the server's memory
+    int event_base, error_base;
+    if (!XRRQueryExtension(keepalive_display, &event_base, &error_base)) {
+        // RandR not available - cleanup and return
+        XCloseDisplay(keepalive_display);
+        keepalive_display = NULL;
+        return;
+    }
+
+    XRRScreenResources *screen_res = XRRGetScreenResources(keepalive_display, DefaultRootWindow(keepalive_display));
+    if (!screen_res)
+        return;
+
+    // Find the output and query property (fast lookup)
+    for (int i = 0; i < screen_res->noutput; i++) {
+        XRROutputInfo *output_info = XRRGetOutputInfo(keepalive_display, screen_res, screen_res->outputs[i]);
+        if (!output_info)
+            continue;
+
+        if (strcmp(output_info->name, output_name) == 0) {
+            Atom prop_atom = XInternAtom(keepalive_display, FRAMEBUFFER_ID_PROPERTY, False);
+            if (prop_atom != None) {
+                Atom actual_type;
+                int actual_format;
+                unsigned long nitems, bytes_after;
+                unsigned char *prop_data = NULL;
+
+                // This is the keep-alive query - synchronous but very fast
+                XRRGetOutputProperty(keepalive_display, screen_res->outputs[i], prop_atom,
+                                     0, 32, False, False, AnyPropertyType,
+                                     &actual_type, &actual_format, &nitems,
+                                     &bytes_after, &prop_data);
+
+                if (prop_data)
+                    XFree(prop_data);
+            }
+            XRRFreeOutputInfo(output_info);
+            break;
+        }
+        XRRFreeOutputInfo(output_info);
+    }
+
+    XRRFreeScreenResources(screen_res);
+    // Don't close display - keep it cached for next time
+}
+
+/* Cleanup function to close cached Display connection */
+void drm_capture_cleanup_keepalive(void) {
+    if (keepalive_display) {
+        XCloseDisplay(keepalive_display);
+        keepalive_display = NULL;
+    }
+}
+
 static uint32_t query_framebuffer_id_from_randr(const char *output_name) {
     Display *dpy = XOpenDisplay(NULL);
     if (!dpy) {

@@ -131,6 +131,8 @@ typedef struct {
 int init_drm_capture(CaptureThread *thread);
 int export_drm_framebuffer_to_dmabuf(CaptureThread *thread, int *dmabuf_fd, uint32_t *format, uint32_t *stride, uint32_t *modifier);
 void cleanup_drm_capture(CaptureThread *thread);
+void drm_capture_keep_alive(const char *output_name);  // Keep-alive signal for virtual output (non-blocking, uses cached connection)
+void drm_capture_cleanup_keepalive(void);  // Cleanup cached keep-alive Display connection
 
 // IMU reader functions (in imu_reader.c)
 int init_imu_reader(IMUReader *reader);

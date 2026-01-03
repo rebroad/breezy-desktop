@@ -114,6 +114,7 @@ struct Renderer {
 // IMU reader functions are declared in breezy_x11_renderer.h (not static)
 
 static void *capture_thread_func(void *arg);
+static void *capture_keepalive_thread_func(void *arg);
 static int init_capture_thread(CaptureThread *thread, Renderer *renderer);
 static void cleanup_capture_thread(CaptureThread *thread);
 
@@ -207,6 +208,25 @@ static bool read_latest_frame(FrameBuffer *fb, uint8_t **data, struct timespec *
     return true;  // Always return true if write_index is valid
 }
 
+// Keep-alive thread function for capture thread (runs independently, doesn't block frame capture)
+// This ensures keep-alive queries don't interrupt 120Hz frame capture timing
+static void *capture_keepalive_thread_func(void *arg) {
+    CaptureThread *thread = (CaptureThread *)arg;
+    while (!thread->stop_requested) {
+        // Sleep for 1.5 seconds
+        struct timespec sleep_time = { .tv_sec = 1, .tv_nsec = 500000000 };  // 1.5 seconds
+        nanosleep(&sleep_time, NULL);
+
+        if (thread->stop_requested)
+            break;
+
+        // Send keep-alive signal (can block here - we're in a separate thread)
+        // This won't affect frame capture timing since it's in a separate thread
+        drm_capture_keep_alive(thread->connector_name);
+    }
+    return NULL;
+}
+
 // Capture Thread Implementation
 static void *capture_thread_func(void *arg) {
     CaptureThread *thread = (CaptureThread *)arg;
@@ -217,6 +237,16 @@ static void *capture_thread_func(void *arg) {
     const double frame_time = 1.0 / thread->framerate;
     struct timespec next_frame_time;
     clock_gettime(CLOCK_MONOTONIC, &next_frame_time);
+
+    // Start keep-alive thread (runs independently, doesn't block frame capture)
+    // This ensures keep-alive queries don't interrupt 120Hz frame capture timing
+    pthread_t keepalive_thread = 0;
+    bool keepalive_thread_started = false;
+    if (pthread_create(&keepalive_thread, NULL, capture_keepalive_thread_func, thread) == 0) {
+        keepalive_thread_started = true;
+    } else {
+        log_error("[Capture] Warning: Failed to create keep-alive thread\n");
+    }
 
     while (!thread->stop_requested) {
         // Check if framebuffer still exists (lightweight check for mode changes)
@@ -326,6 +356,12 @@ static void *capture_thread_func(void *arg) {
     }
 
     log_info("[Capture] Thread stopping\n");
+
+    // Wait for keep-alive thread to finish
+    if (keepalive_thread_started) {
+        pthread_join(keepalive_thread, NULL);
+    }
+
     return NULL;
 }
 
@@ -357,6 +393,8 @@ static void cleanup_capture_thread(CaptureThread *thread) {
         thread->running = false;
     }
     cleanup_drm_capture(thread);
+    // Cleanup cached keep-alive Display connection
+    drm_capture_cleanup_keepalive();
 }
 
 // Render Thread Implementation
