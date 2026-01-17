@@ -4,6 +4,15 @@
 
 This document tracks the implementation status of the Xorg modesetting driver (`xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`) to support virtual XR outputs for X11.
 
+**📖 For detailed technical documentation on using virtual XR outputs, see: [`xserver/VIRTUAL_XR_OUTPUTS.md`](../../xserver/VIRTUAL_XR_OUTPUTS.md)**
+
+That document covers:
+- Complete API reference for virtual output creation and management
+- DMA-BUF capture workflow and integration guide
+- Keep-alive mechanism and DPMS management
+- Performance comparison: DMA-BUF vs XShm
+- Code examples for client applications
+
 ## Current Implementation Status
 
 Based on code review of `drmmode_xr_virtual.c`:
@@ -11,13 +20,16 @@ Based on code review of `drmmode_xr_virtual.c`:
 ### ✅ Completed
 
 **Xorg Virtual XR Infrastructure**:
-- XR-Manager control output creation and RandR integration
-- Virtual XR output creation infrastructure (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT)
-- Virtual CRTC creation for virtual outputs (software-based CRTCs)
-- Off-screen framebuffer/pixmap creation (GBM and dumb buffer support)
-- AR mode logic (hide/show physical XR connector via AR_MODE property)
-- Physical XR display detection via EDID and `non_desktop` marking
-- RandR integration (outputs appear in `xrandr` and Display Settings)
+- ✅ XR-Manager control output creation and RandR integration
+- ✅ Virtual XR output creation infrastructure (CREATE_XR_OUTPUT, DELETE_XR_OUTPUT)
+- ✅ Virtual CRTC creation for virtual outputs (software-based CRTCs)
+- ✅ Off-screen framebuffer/pixmap creation (GBM and dumb buffer support)
+- ✅ AR mode logic (hide/show physical XR connector via `non_desktop` property)
+- ✅ Physical XR display detection via EDID and `non_desktop` marking
+- ✅ RandR integration (outputs appear in `xrandr` and Display Settings)
+- ✅ **FRAMEBUFFER_ID property** on virtual outputs for zero-copy DMA-BUF capture
+- ✅ **Automatic DPMS management** based on keep-alive signals (5-second inactivity threshold)
+- ✅ **Keep-alive mechanism** via FRAMEBUFFER_ID property queries
 
 **Breezy Desktop (GNOME)**:
 - Breezy Desktop working on X11 under GNOME
@@ -44,28 +56,28 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 **Reference:** Standard RandR mode-setting APIs (`RRSetCrtcConfig`, CRTC's `set_mode_major` callback)
 
-#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (Complete)
+#### 2. **DRM Framebuffer Export for Zero-Copy Capture** (✅ Complete)
 
 **What's implemented:**
-- ✅ `drmmode_xr_export_framebuffer_to_dmabuf()` function exists in Xorg driver
-- ✅ Exports framebuffer handle to DMA-BUF file descriptor using `drmPrimeHandleToFD()`
-- ✅ Works with both GBM and dumb buffers
 - ✅ **FRAMEBUFFER_ID RandR property** on virtual outputs exposes framebuffer ID to renderer
 - ✅ Property automatically updates when framebuffer changes (mode switch)
+- ✅ **Keep-alive mechanism**: Querying FRAMEBUFFER_ID property signals active consumption
+- ✅ **Automatic DPMS management**: Output transitions to Standby after 5 seconds of inactivity
+- ✅ Keep-alive resets inactivity timer and enables DPMS when output was inactive
+- ✅ CRTC destruction properly cleans up resources (prevents crashes during deletion)
 
-**What's still needed:**
-- 🚧 Renderer needs to be updated to query FRAMEBUFFER_ID property via XRandR extension
-- 🚧 Renderer should use property value to call `drmModeGetFB()` and `drmPrimeHandleToFD()` for zero-copy capture
-- 🚧 Integration testing to verify zero-copy capture works end-to-end
+**Renderer Integration:**
+- ✅ `breezy-desktop` renderer implements keep-alive in separate thread (`drm_capture_keep_alive()`)
+- ✅ `x11-streamer` implements keep-alive in separate thread (`x11_context_keep_alive_output()`)
+- ✅ Both use cached X11 connections to avoid blocking capture loops
 
-**Why it's needed:**
-- The 3D renderer uses DMA-BUF zero-copy for optimal performance
-- Current renderer expects to access framebuffers via DRM API (`x11/renderer/drm_capture.c`)
-- Eliminates CPU-side pixel copying, reducing latency and improving performance
+**Technical Details:**
+- See [`xserver/VIRTUAL_XR_OUTPUTS.md`](../../xserver/VIRTUAL_XR_OUTPUTS.md) for complete DMA-BUF capture workflow
+- Query `FRAMEBUFFER_ID` property via XRandR extension (`XRRGetOutputProperty()`)
+- Use framebuffer ID with `drmModeGetFB()` → `drmPrimeHandleToFD()` for zero-copy capture
+- Query property every 1-2 seconds in separate thread to signal keep-alive
 
 **Reference:** `x11/renderer/DMA_BUF_OPTIMIZATION.md`, `KMS_CONNECTOR_AND_FB_ID_OPTIONS.md`
-
-**Technical Note:** The framebuffer ID is now exposed via RandR property `FRAMEBUFFER_ID` on each virtual output. The renderer should query this property via XRandR extension (or `xrandr --props`) to get the framebuffer ID, then use standard DRM APIs (`drmModeGetFB()` → `drmPrimeHandleToFD()`) to export for zero-copy capture.
 
 #### 3. **X11 Backend Integration** (Required)
 
@@ -100,21 +112,22 @@ Based on code review of `drmmode_xr_virtual.c`:
 
 After implementation, verify:
 1. ✅ XR-Manager appears in `xrandr --listoutputs`
-2. ✅ XR-0 can be created via `xrandr --output XR-Manager --set CREATE_XR_OUTPUT "XR-0:1920:1080:60"`
+2. ✅ XR-0 can be created via `CREATE_XR_OUTPUT` property on XR-Manager output
 3. ✅ XR-0 appears in `xrandr --listoutputs` after creation
-4. ✅ AR mode toggle hides/shows physical XR connector correctly (`xrandr --output XR-Manager --set AR_MODE 1`)
+4. ✅ AR mode toggle hides/shows physical XR connector correctly (set `non-desktop` property on physical XR output)
 5. ✅ Physical XR connector is marked as `non_desktop` when appropriate
-6. 🚧 XR-0 framebuffer is accessible via DRM API (test with `breezy_x11_renderer`)
-7. 🚧 Mode changes via standard RandR APIs (xrandr --output XR-0 --mode) work correctly
-8. 🚧 DMA-BUF export provides zero-copy framebuffer access
-9. 🚧 End-to-end workflow: calibration → XR-0 creation → AR mode → renderer startup
+6. ✅ XR-0 `FRAMEBUFFER_ID` property is accessible via RandR
+7. ✅ Keep-alive mechanism works (querying `FRAMEBUFFER_ID` prevents DPMS standby)
+8. ✅ DPMS automatically transitions to Standby after 5 seconds of inactivity
+9. ✅ DMA-BUF export provides zero-copy framebuffer access (tested in `breezy_x11_renderer` and `x11-streamer`)
+10. 🚧 Mode changes via standard RandR APIs (xrandr --output XR-0 --mode) work correctly
+11. 🚧 End-to-end workflow: calibration → XR-0 creation → AR mode → renderer startup
 
 ## Related Files
 
 - **Implementation:** `xserver/hw/xfree86/drivers/modesetting/drmmode_xr_virtual.c`
-- **Design Docs:**
-  - `breezy-desktop/XORG_VIRTUAL_XR_API.md`
+- **Technical Documentation:**
+  - **[`xserver/VIRTUAL_XR_OUTPUTS.md`](../../xserver/VIRTUAL_XR_OUTPUTS.md)** - **Complete API reference, architecture, and integration guide** (read this first!)
   - `breezy-desktop/BREEZY_X11_TECHNICAL.md` (section 7.2)
-  - `breezy-desktop/x11_ar_support_via_xorg_virtual_xr_connector.plan.md`
 - **Renderer Code:** `breezy-desktop/x11/renderer/` (expects virtual connector to be available)
 - **Backend Code:** `breezy-desktop/x11/src/x11_backend.py`
